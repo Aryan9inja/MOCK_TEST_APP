@@ -14,8 +14,8 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Run
-./"$OUT" < "$INP" > "${SRC}_run_out.log" 2> "${SRC}_run_err.log"
+# Run (removed the ./ prefix since SRC is an absolute path from ioutil.TempFile)
+"$OUT" < "$INP" > "${SRC}_run_out.log" 2> "${SRC}_run_err.log"
 EXEC_STATUS=$?
 
 if [ $EXEC_STATUS -ne 0 ]; then
