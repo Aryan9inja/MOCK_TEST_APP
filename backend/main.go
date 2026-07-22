@@ -118,8 +118,9 @@ func main() {
 			return
 		}
 
-		// Basic MVP execution logic
-		resp := runCode(req.Code, req.Language, question.TestCases)
+		// Combine visible and hidden test cases
+		allTests := append(question.TestCases, question.HiddenTestCases...)
+		resp := runCode(req.Code, req.Language, req.QuestionID, allTests)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
@@ -136,41 +137,95 @@ func main() {
 	}
 }
 
-func runCode(code, lang string, testCases []TestCase) RunResponse {
-	// For MVP, if it's python, we can write a temp file and execute it.
-	// We'll write the user code + a test runner block.
-	if lang == "python" {
-		tmpfile, err := ioutil.TempFile("", "run-*.py")
-		if err != nil {
-			return RunResponse{Passed: false, Message: "Failed to create temp file"}
-		}
-		defer os.Remove(tmpfile.Name())
+func runCode(code, lang, qID string, testCases []TestCase) RunResponse {
+	if lang == "cpp" {
+		// Inject a main function for C++ Two Sum problem
+		mainInjection := `
+#include <iostream>
+#include <vector>
+#include <string>
+#include <sstream>
 
-		// We assume the user code contains a function and we just append calls for the tests
-		// This is a naive implementation for the MVP
-		fullCode := code + "\n\nif __name__ == '__main__':\n"
+int main() {
+    std::string arr_str;
+    std::cin >> arr_str;
+    int target;
+    std::cin >> target;
+    
+    // Parse array
+    if (arr_str.length() > 2) {
+        arr_str = arr_str.substr(1, arr_str.length() - 2);
+    } else {
+        arr_str = "";
+    }
+    
+    std::vector<int> nums;
+    if (arr_str != "") {
+        std::stringstream ss(arr_str);
+        std::string token;
+        while(std::getline(ss, token, ',')) {
+            nums.push_back(std::stoi(token));
+        }
+    }
+    
+    Solution sol;
+    std::vector<int> res = sol.twoSum(nums, target);
+    if (res.size() >= 2) {
+        std::cout << "[" << res[0] << "," << res[1] << "]" << std::endl;
+    } else {
+        std::cout << "[]" << std::endl;
+    }
+    return 0;
+}
+`
+		fullCode := code + "\n" + mainInjection
+
+		tmpCodeFile, err := ioutil.TempFile("", "run-*.cpp")
+		if err != nil {
+			return RunResponse{Passed: false, Message: "Failed to create temp cpp file"}
+		}
+		defer os.Remove(tmpCodeFile.Name())
+
+		if _, err := tmpCodeFile.Write([]byte(fullCode)); err != nil {
+			return RunResponse{Passed: false, Message: "Failed to write temp cpp file"}
+		}
+		tmpCodeFile.Close()
+
+		scriptPath, _ := filepath.Abs(filepath.Join("..", "scripts", "run_cpp.sh"))
+
+		var logs []string
+		passed := true
+
 		for i, tc := range testCases {
-			fullCode += fmt.Sprintf("    # Test case %d\n", i+1)
-			fullCode += fmt.Sprintf("    print('Running test %d...')\n", i+1)
-			_ = tc // In a real runner we parse the func_signature and call it.
+			tmpInputFile, err := ioutil.TempFile("", "input-*.txt")
+			if err != nil {
+				return RunResponse{Passed: false, Message: "Failed to create temp input file"}
+			}
+			tmpInputFile.Write([]byte(tc.Input))
+			tmpInputFile.Close()
+			defer os.Remove(tmpInputFile.Name())
+
+			cmd := exec.Command("bash", scriptPath, tmpCodeFile.Name(), tmpInputFile.Name())
+			out, _ := cmd.CombinedOutput()
+			actualOutput := strings.TrimSpace(string(out))
+			expectedOutput := strings.TrimSpace(tc.ExpectedOutput)
+
+			if actualOutput != expectedOutput {
+				passed = false
+				logs = append(logs, fmt.Sprintf("Test Case %d FAILED.\nInput:\n%s\nExpected:\n%s\nGot:\n%s\n", i+1, tc.Input, expectedOutput, actualOutput))
+			} else {
+				logs = append(logs, fmt.Sprintf("Test Case %d PASSED.", i+1))
+			}
 		}
 
-		if _, err := tmpfile.Write([]byte(fullCode)); err != nil {
-			return RunResponse{Passed: false, Message: "Failed to write temp file"}
-		}
-		if err := tmpfile.Close(); err != nil {
-			return RunResponse{Passed: false, Message: "Failed to close temp file"}
-		}
+		finalMsg := strings.Join(logs, "\n\n")
+		return RunResponse{Passed: passed, Message: finalMsg}
+	}
 
-		cmd := exec.Command("python3", tmpfile.Name())
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			return RunResponse{Passed: false, Message: fmt.Sprintf("Execution Error:\n%s", string(out))}
-		}
-
-		return RunResponse{Passed: true, Message: fmt.Sprintf("Output:\n%s\nAll tests passed successfully!", string(out))}
+	if lang == "python" {
+		// Mock logic for Python execution
+		return RunResponse{Passed: true, Message: "Python code executed successfully. (Mock)"}
 	}
     
-    // Fallback naive success for C++ and SQL in this mock implementation
 	return RunResponse{Passed: true, Message: "Code accepted (Mock Execution)."}
 }
