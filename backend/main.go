@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -118,9 +120,7 @@ func main() {
 			return
 		}
 
-		// Combine visible and hidden test cases
-		allTests := append(question.TestCases, question.HiddenTestCases...)
-		resp := runCode(req.Code, req.Language, req.QuestionID, allTests)
+		resp := runCode(req.Code, req.Language, question)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
@@ -137,9 +137,10 @@ func main() {
 	}
 }
 
-func runCode(code, lang, qID string, testCases []TestCase) RunResponse {
+func runCode(code, lang string, q *Question) RunResponse {
+	testCases := append(q.TestCases, q.HiddenTestCases...)
+
 	if lang == "cpp" {
-		// Inject a main function for C++ Two Sum problem
 		mainInjection := `
 #include <iostream>
 #include <vector>
@@ -152,7 +153,6 @@ int main() {
     int target;
     std::cin >> target;
     
-    // Parse array
     if (arr_str.length() > 2) {
         arr_str = arr_str.substr(1, arr_str.length() - 2);
     } else {
@@ -222,10 +222,101 @@ int main() {
 		return RunResponse{Passed: passed, Message: finalMsg}
 	}
 
+	if lang == "sql" {
+		if database.Pool == nil {
+			return RunResponse{Passed: false, Message: "Database connection not available to run SQL tests"}
+		}
+
+		var logs []string
+		passed := true
+		ctx := context.Background()
+
+		for i, tc := range testCases {
+			schemaId := fmt.Sprintf("test_schema_%d_%d", time.Now().UnixNano(), i)
+
+			// 1. Create temporary schema
+			_, err := database.Pool.Exec(ctx, fmt.Sprintf("CREATE SCHEMA %s", schemaId))
+			if err != nil {
+				return RunResponse{Passed: false, Message: fmt.Sprintf("Failed to create schema: %v", err)}
+			}
+
+			// Acquire a dedicated connection for the isolated test case context
+			conn, err := database.Pool.Acquire(ctx)
+			if err != nil {
+				database.Pool.Exec(ctx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaId))
+				return RunResponse{Passed: false, Message: "Failed to acquire db connection"}
+			}
+
+			// Set search path strictly to the temporary schema
+			_, err = conn.Exec(ctx, fmt.Sprintf("SET search_path TO %s", schemaId))
+			if err != nil {
+				conn.Release()
+				database.Pool.Exec(ctx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaId))
+				return RunResponse{Passed: false, Message: "Failed to set search path"}
+			}
+
+			// Execute Table Schema creation
+			if q.TablesSchema != nil {
+				_, err = conn.Exec(ctx, *q.TablesSchema)
+				if err != nil {
+					conn.Release()
+					database.Pool.Exec(ctx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaId))
+					return RunResponse{Passed: false, Message: fmt.Sprintf("Schema Error: %v", err)}
+				}
+			}
+
+			// Execute Test Case Inputs (Mock data population)
+			_, err = conn.Exec(ctx, tc.Input)
+			if err != nil {
+				conn.Release()
+				database.Pool.Exec(ctx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaId))
+				return RunResponse{Passed: false, Message: fmt.Sprintf("Input Error: %v", err)}
+			}
+
+			// Execute User SQL Code
+			rows, err := conn.Query(ctx, code)
+			if err != nil {
+				passed = false
+				logs = append(logs, fmt.Sprintf("Test Case %d FAILED.\nQuery Error: %v", i+1, err))
+				conn.Release()
+				database.Pool.Exec(ctx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaId))
+				continue
+			}
+
+			// Read and format the output
+			var actualOutputRows []string
+			for rows.Next() {
+				vals, _ := rows.Values()
+				var sVals []string
+				for _, v := range vals {
+					sVals = append(sVals, fmt.Sprintf("%v", v))
+				}
+				actualOutputRows = append(actualOutputRows, strings.Join(sVals, ","))
+			}
+			rows.Close()
+
+			actualOutput := strings.TrimSpace(strings.Join(actualOutputRows, "\n"))
+			expectedOutput := strings.TrimSpace(tc.ExpectedOutput)
+
+			if actualOutput != expectedOutput {
+				passed = false
+				logs = append(logs, fmt.Sprintf("Test Case %d FAILED.\nExpected:\n%s\nGot:\n%s\n", i+1, expectedOutput, actualOutput))
+			} else {
+				logs = append(logs, fmt.Sprintf("Test Case %d PASSED.", i+1))
+			}
+
+			// Cleanup
+			conn.Release()
+			database.Pool.Exec(ctx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaId))
+		}
+
+		finalMsg := strings.Join(logs, "\n\n")
+		return RunResponse{Passed: passed, Message: finalMsg}
+	}
+
 	if lang == "python" {
-		// Mock logic for Python execution
 		return RunResponse{Passed: true, Message: "Python code executed successfully. (Mock)"}
 	}
-    
-	return RunResponse{Passed: true, Message: "Code accepted (Mock Execution)."}
+
+	return RunResponse{Passed: false, Message: "Unsupported language"}
 }
