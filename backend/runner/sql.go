@@ -10,7 +10,10 @@ import (
 	"oa-practice-platform/models"
 )
 
-func RunSQL(code string, tablesSchema *string, testCases []models.TestCase) models.RunResponse {
+func RunSQL(code string, q *models.Question) models.RunResponse {
+	testCases := append(q.TestCases, q.HiddenTestCases...)
+	tablesSchema := q.TablesSchema
+
 	if database.Pool == nil {
 		return models.RunResponse{Passed: false, Message: "Database connection not available to run SQL tests"}
 	}

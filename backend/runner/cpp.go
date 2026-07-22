@@ -11,7 +11,9 @@ import (
 	"oa-practice-platform/models"
 )
 
-func RunCPP(code string, testCases []models.TestCase) models.RunResponse {
+func RunCPP(code string, q *models.Question) models.RunResponse {
+	testCases := append(q.TestCases, q.HiddenTestCases...)
+	
 	mainInjection := `
 #include <iostream>
 #include <vector>
