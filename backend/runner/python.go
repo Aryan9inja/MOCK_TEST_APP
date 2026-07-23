@@ -3,7 +3,7 @@ package runner
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+
 	"os"
 	"os/exec"
 	"strings"
@@ -13,7 +13,7 @@ import (
 
 func RunPython(code string, q *models.Question) models.RunResponse {
 	testCases := append(q.TestCases, q.HiddenTestCases...)
-	
+
 	funcName := "solution" // Default
 	if q.FuncSignature != nil {
 		sig := *q.FuncSignature
@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
 	fullCode := code + "\n" + injection
 
-	tmpFile, err := ioutil.TempFile("", "run-*.py")
+	tmpFile, err := os.CreateTemp("", "run-*.py")
 	if err != nil {
 		return models.RunResponse{Passed: false, Message: "Failed to create temp python file"}
 	}
@@ -73,14 +73,14 @@ if __name__ == "__main__":
 	for i, tc := range testCases {
 		cmd := exec.Command("python3", tmpFile.Name())
 		cmd.Stdin = strings.NewReader(tc.Input)
-		
+
 		var out bytes.Buffer
 		var stderr bytes.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = &stderr
-		
+
 		err := cmd.Run()
-		
+
 		actualOutput := strings.TrimSpace(out.String())
 		if err != nil {
 			errStr := strings.TrimSpace(stderr.String())

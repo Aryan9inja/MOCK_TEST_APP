@@ -13,7 +13,7 @@ import (
 
 func RunCPP(code string, q *models.Question) models.RunResponse {
 	testCases := append(q.TestCases, q.HiddenTestCases...)
-	
+
 	mainInjection := `
 #include <iostream>
 #include <vector>
@@ -53,7 +53,7 @@ int main() {
 `
 	fullCode := code + "\n" + mainInjection
 
-	tmpCodeFile, err := ioutil.TempFile("", "run-*.cpp")
+	tmpCodeFile, err := os.CreateTemp("", "run-*.cpp")
 	if err != nil {
 		return models.RunResponse{Passed: false, Message: "Failed to create temp cpp file"}
 	}
