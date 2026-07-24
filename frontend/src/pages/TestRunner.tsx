@@ -96,6 +96,42 @@ export default function TestRunner() {
     return () => clearInterval(timer);
   }, [timeLeft]);
 
+  // Handle browser refresh and tab close
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = 'Are you sure you want to leave? Your progress will be submitted.';
+    };
+
+    const handleUnload = () => {
+      if (!testData) return;
+      
+      let totalTC = 0;
+      testData.questions.forEach(q => {
+          totalTC += (q.test_cases?.length || 0) + (q.hidden_test_cases?.length || 0);
+      });
+      const timeTaken = testData.time - (timeLeft || 0);
+      const payload = {
+          questions_solved: solvedQuestions.size,
+          total_questions: testData.questions.length,
+          time_taken_seconds: timeTaken,
+          test_cases_passed: testCasesPassed,
+          total_test_cases: totalTC
+      };
+      
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      navigator.sendBeacon(`http://localhost:8080/api/tests/${testId}/history`, blob);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('unload', handleUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('unload', handleUnload);
+    };
+  }, [testData, solvedQuestions, testCasesPassed, timeLeft, testId]);
+
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -211,7 +247,11 @@ export default function TestRunner() {
       <div className="w-1/3 flex flex-col border-r border-border bg-[#0c0c0e]">
         <div className="p-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <button onClick={() => navigate('/')} className="p-1 hover:bg-[#27272a] rounded-lg transition-colors mr-1">
+            <button onClick={() => {
+                if (window.confirm("Do you want to submit the test and return home? Click OK to submit or Cancel to continue.")) {
+                    handleSubmitTest();
+                }
+            }} className="p-1 hover:bg-[#27272a] rounded-lg transition-colors mr-1">
                 <ArrowLeft size={18} className="text-gray-400" />
             </button>
             <div className="bg-primary/20 p-2 rounded-lg text-primary">
