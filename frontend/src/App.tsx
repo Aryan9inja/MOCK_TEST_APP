@@ -10,7 +10,6 @@ interface TestCase {
 interface Question {
   id: string;
   title: string;
-  difficulty: string;
   statement: string;
   constraints: string;
   examples: { input: string; output: string }[];
@@ -22,28 +21,51 @@ interface Question {
   hidden_test_cases: TestCase[];
 }
 
+interface MockTest {
+  title: string;
+  time: number;
+  questions: Question[];
+}
+
 function App() {
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [testData, setTestData] = useState<MockTest | null>(null);
   const [currentQIdx, setCurrentQIdx] = useState(0);
   const [language, setLanguage] = useState('cpp');
   const [code, setCode] = useState('');
   const [testResults, setTestResults] = useState<{ passed: boolean, message: string } | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
   useEffect(() => {
     // Fetch questions from backend
     fetch('http://localhost:8080/api/questions')
       .then(res => res.json())
-      .then((data: Question[]) => {
-        setQuestions(data);
-        if (data.length > 0) {
-          loadQuestion(data[0]);
+      .then((data: MockTest) => {
+        setTestData(data);
+        setTimeLeft(data.time);
+        if (data.questions.length > 0) {
+          loadQuestion(data.questions[0]);
         }
       })
       .catch(err => {
         console.error("Failed to fetch questions. Ensure backend is running.", err);
       });
   }, []);
+
+  useEffect(() => {
+    if (timeLeft === null || timeLeft <= 0) return;
+    const timer = setInterval(() => {
+      setTimeLeft(prev => (prev && prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft]);
+
+  const formatTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   const loadQuestion = (q: Question) => {
     if (q.q_type === 'DSA') {
@@ -58,21 +80,22 @@ function App() {
   };
 
   const handleNext = () => {
-    if (currentQIdx < questions.length - 1) {
+    if (testData && currentQIdx < testData.questions.length - 1) {
       setCurrentQIdx(currentQIdx + 1);
-      loadQuestion(questions[currentQIdx + 1]);
+      loadQuestion(testData.questions[currentQIdx + 1]);
     }
   };
 
   const handlePrev = () => {
-    if (currentQIdx > 0) {
+    if (testData && currentQIdx > 0) {
       setCurrentQIdx(currentQIdx - 1);
-      loadQuestion(questions[currentQIdx - 1]);
+      loadQuestion(testData.questions[currentQIdx - 1]);
     }
   };
 
   const handleRunTests = async () => {
-    const q = questions[currentQIdx];
+    if (!testData) return;
+    const q = testData.questions[currentQIdx];
     if (!q) return;
 
     setIsRunning(true);
@@ -95,13 +118,13 @@ function App() {
     setIsRunning(false);
   };
 
-  if (questions.length === 0) {
-    return <div className="flex h-screen w-full bg-[#09090b] text-white items-center justify-center">Loading questions... Ensure Go backend is running.</div>;
+  if (!testData || testData.questions.length === 0) {
+    return <div className="flex h-screen w-full bg-[#09090b] text-white items-center justify-center">Loading assessment... Ensure Go backend is running.</div>;
   }
 
-  const q = questions[currentQIdx];
+  const q = testData.questions[currentQIdx];
+  const questions = testData.questions;
 
-  // Determine allowed languages based on question type
   let allowedLanguages = ['cpp'];
   if (q.q_type === 'Python') allowedLanguages = ['python'];
   if (q.q_type === 'SQL') allowedLanguages = ['sql'];
@@ -115,26 +138,25 @@ function App() {
             <div className="bg-primary/20 p-2 rounded-lg text-primary">
               <Code2 size={20} />
             </div>
-            <h1 className="font-semibold tracking-tight">Practice OA</h1>
+            <h1 className="font-semibold tracking-tight truncate max-w-[200px]" title={testData.title}>
+              {testData.title}
+            </h1>
           </div>
-          <div className="flex items-center gap-2 text-red-400 font-mono text-sm bg-red-400/10 px-3 py-1.5 rounded-full border border-red-400/20">
+          <div className={`flex items-center gap-2 font-mono text-sm px-3 py-1.5 rounded-full border ${timeLeft !== null && timeLeft < 300 ? 'text-red-400 bg-red-400/10 border-red-400/20' : 'text-gray-300 bg-gray-800 border-gray-700'}`}>
             <Clock size={14} />
-            <span>01:30:00</span>
+            <span>{timeLeft !== null ? formatTime(timeLeft) : '00:00:00'}</span>
           </div>
         </div>
         
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="flex justify-between items-center">
-             <button onClick={handlePrev} disabled={currentQIdx === 0} className="text-xs bg-[#27272a] px-2 py-1 rounded disabled:opacity-50 text-white">Prev</button>
+             <button onClick={handlePrev} disabled={currentQIdx === 0} className="text-xs bg-[#27272a] hover:bg-[#3f3f46] px-3 py-1.5 rounded disabled:opacity-50 text-white transition-colors">Prev</button>
              <span className="text-xs text-gray-400">Question {currentQIdx + 1} of {questions.length}</span>
-             <button onClick={handleNext} disabled={currentQIdx === questions.length - 1} className="text-xs bg-[#27272a] px-2 py-1 rounded disabled:opacity-50 text-white">Next</button>
+             <button onClick={handleNext} disabled={currentQIdx === questions.length - 1} className="text-xs bg-[#27272a] hover:bg-[#3f3f46] px-3 py-1.5 rounded disabled:opacity-50 text-white transition-colors">Next</button>
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-2xl font-bold">{q.title}</h2>
-              <span className={`text-xs font-semibold px-2 py-1 rounded-full border ${q.difficulty === 'Easy' ? 'bg-green-400/10 text-green-400 border-green-400/20' : 'bg-yellow-400/10 text-yellow-400 border-yellow-400/20'}`}>{q.difficulty}</span>
-            </div>
+            <h2 className="text-2xl font-bold mb-4">{q.title}</h2>
             <p className="text-sm text-gray-400 leading-relaxed whitespace-pre-wrap">
               {q.statement}
             </p>

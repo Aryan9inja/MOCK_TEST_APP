@@ -8,7 +8,6 @@ type TestCase struct {
 type Question struct {
 	ID              string     `json:"id"`
 	Title           string     `json:"title"`
-	Difficulty      string     `json:"difficulty"`
 	Statement       string     `json:"statement"`
 	Constraints     string     `json:"constraints"`
 	Examples        []any      `json:"examples"`
@@ -18,6 +17,12 @@ type Question struct {
 	QType           string     `json:"q_type"`
 	TestCases       []TestCase `json:"test_cases"`
 	HiddenTestCases []TestCase `json:"hidden_test_cases"`
+}
+
+type MockTest struct {
+	Title     string     `json:"title"`
+	Time      int        `json:"time"`
+	Questions []Question `json:"questions"`
 }
 
 type RunRequest struct {

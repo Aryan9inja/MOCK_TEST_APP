@@ -10,13 +10,13 @@ import (
 )
 
 func GetQuestionsHandler(w http.ResponseWriter, r *http.Request) {
-	qs, err := services.GetQuestions()
+	test, err := services.GetMockTest()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(qs)
+	json.NewEncoder(w).Encode(test)
 }
 
 func RunTestsHandler(w http.ResponseWriter, r *http.Request) {

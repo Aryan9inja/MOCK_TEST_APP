@@ -8,23 +8,23 @@ import (
 	"oa-practice-platform/models"
 )
 
-func GetQuestions() ([]models.Question, error) {
+func GetMockTest() (*models.MockTest, error) {
 	path := filepath.Join("..", "questions", "mock.json")
 	file, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	var qs []models.Question
-	err = json.Unmarshal(file, &qs)
-	return qs, err
+	var test models.MockTest
+	err = json.Unmarshal(file, &test)
+	return &test, err
 }
 
 func GetQuestionByID(id string) (*models.Question, error) {
-	qs, err := GetQuestions()
+	test, err := GetMockTest()
 	if err != nil {
 		return nil, err
 	}
-	for _, q := range qs {
+	for _, q := range test.Questions {
 		if q.ID == id {
 			return &q, nil
 		}
