@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"sync"
 
 	"github.com/go-chi/chi/v5"
 
@@ -77,27 +78,40 @@ func SubmitTestHistoryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Auto run all test cases and mark submission of questions
-	questionsSolved := 0
-	testCasesPassed := 0
+	// Auto run all test cases concurrently and mark submission of questions
+	var questionsSolved int
+	var testCasesPassed int
+	var wg sync.WaitGroup
+	var mu sync.Mutex
 
 	for _, ans := range req.Answers {
 		q, err := services.GetQuestionByID(id, ans.QuestionID)
 		if err != nil || q == nil {
 			continue // Skip if question not found
 		}
-		
-		resp := runner.RunCode(ans.Code, ans.Language, q)
-		if resp.Passed {
-			questionsSolved++
-		}
-		
-		for _, tcResult := range resp.Results {
-			if tcResult.Passed {
-				testCasesPassed++
+
+		wg.Add(1)
+		go func(answer services.AnswerPayload, question *models.Question) {
+			defer wg.Done()
+			resp := runner.RunCode(answer.Code, answer.Language, question)
+			
+			localPassed := 0
+			for _, tcResult := range resp.Results {
+				if tcResult.Passed {
+					localPassed++
+				}
 			}
-		}
+
+			mu.Lock()
+			if resp.Passed {
+				questionsSolved++
+			}
+			testCasesPassed += localPassed
+			mu.Unlock()
+		}(ans, q)
 	}
+
+	wg.Wait()
 
 	req.QuestionsSolved = questionsSolved
 	req.TestCasesPassed = testCasesPassed
