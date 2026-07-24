@@ -50,6 +50,7 @@ export default function TestRunner() {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const isReview = searchParams.get('review') === 'true';
+  const historyId = searchParams.get('historyId');
 
   const [testData, setTestData] = useState<MockTest | null>(null);
   const [currentQIdx, setCurrentQIdx] = useState(0);
@@ -81,9 +82,13 @@ export default function TestRunner() {
                 const hRes = await fetch(`http://localhost:8080/api/tests/${testId}/history`);
                 const hData = await hRes.json();
                 if (hData && hData.length > 0) {
-                    const latest = hData[0]; // Ordered by created_at DESC
-                    if (latest.answers) {
-                        latest.answers.forEach((ans: any) => {
+                    let targetHistory = hData[0]; // Ordered by created_at DESC
+                    if (historyId) {
+                        const found = hData.find((h: any) => h.id === historyId);
+                        if (found) targetHistory = found;
+                    }
+                    if (targetHistory.answers) {
+                        targetHistory.answers.forEach((ans: any) => {
                             historyAnswers[ans.question_id] = { code: ans.code, language: ans.language };
                         });
                         setAnswers(historyAnswers);

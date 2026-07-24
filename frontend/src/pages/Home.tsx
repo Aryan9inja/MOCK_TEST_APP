@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Code2, Clock, CalendarDays, History } from 'lucide-react';
+import { Plus, Code2, Clock, CalendarDays, History, ArrowRight } from 'lucide-react';
 
 interface TestSummary {
     id: string;
@@ -16,6 +16,8 @@ export default function Home() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [jsonPayload, setJsonPayload] = useState('');
     const [error, setError] = useState('');
+    const [historyModalTestId, setHistoryModalTestId] = useState<string | null>(null);
+    const [testHistories, setTestHistories] = useState<any[]>([]);
 
     useEffect(() => {
         fetchTests();
@@ -26,6 +28,17 @@ export default function Home() {
             .then(res => res.json())
             .then(data => setTests(data || []))
             .catch(err => console.error(err));
+    };
+
+    const openHistoryModal = async (testId: string) => {
+        setHistoryModalTestId(testId);
+        try {
+            const res = await fetch(`http://localhost:8080/api/tests/${testId}/history`);
+            const data = await res.json();
+            setTestHistories(data || []);
+        } catch (e) {
+            console.error(e);
+        }
     };
 
     const handleAddTest = async () => {
@@ -102,7 +115,9 @@ export default function Home() {
                                         Take Test
                                     </button>
                                 )}
-                                <button className="p-2 bg-[#27272a] hover:bg-[#3f3f46] text-white rounded-lg transition-colors border border-border" title="View History">
+                                <button 
+                                    onClick={() => openHistoryModal(t.id)}
+                                    className="p-2 bg-[#27272a] hover:bg-[#3f3f46] text-white rounded-lg transition-colors border border-border" title="View History">
                                     <History size={18} />
                                 </button>
                             </div>
@@ -138,6 +153,37 @@ export default function Home() {
                         <div className="p-6 border-t border-border flex justify-end gap-3">
                             <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#27272a] transition-colors">Cancel</button>
                             <button onClick={handleAddTest} className="px-4 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors shadow-[0_0_15px_rgba(59,130,246,0.3)]">Save Assessment</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* History Modal */}
+            {historyModalTestId && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-[#0c0c0e] border border-border rounded-xl w-full max-w-lg flex flex-col max-h-[80vh]">
+                        <div className="p-6 border-b border-border flex justify-between items-center">
+                            <h2 className="text-xl font-bold text-white">Test History</h2>
+                            <button onClick={() => setHistoryModalTestId(null)} className="text-gray-400 hover:text-white">✕</button>
+                        </div>
+                        <div className="p-6 overflow-y-auto flex-1 space-y-3">
+                            {testHistories.length === 0 ? (
+                                <p className="text-gray-400 text-center py-4">No historical attempts found for this test.</p>
+                            ) : (
+                                testHistories.map(h => (
+                                    <div key={h.id} 
+                                         onClick={() => navigate(`/test/${historyModalTestId}?review=true&historyId=${h.id}`)}
+                                         className="bg-[#18181b] border border-border p-4 rounded-xl cursor-pointer hover:border-primary/50 transition-colors flex justify-between items-center group">
+                                        <div>
+                                            <div className="font-semibold text-white mb-1">{new Date(h.created_at).toLocaleString()}</div>
+                                            <div className="text-sm text-gray-400">Questions Solved: <span className="text-gray-200">{h.questions_solved} / {h.total_questions}</span></div>
+                                        </div>
+                                        <div className="p-2 bg-[#27272a] rounded-lg group-hover:bg-primary/20 group-hover:text-primary transition-colors">
+                                            <ArrowRight size={18} />
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
                 </div>
