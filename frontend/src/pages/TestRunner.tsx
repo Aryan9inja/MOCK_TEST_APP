@@ -290,7 +290,7 @@ export default function TestRunner() {
   return (
     <div className="flex h-screen w-full bg-[#09090b] text-foreground font-sans overflow-hidden">
       <PanelGroup orientation="horizontal">
-        <Panel defaultSize={35} minSize={20}>
+        <Panel defaultSize={40} minSize={25}>
           <Sidebar 
             title={testData.title}
             isReview={isReview}
@@ -314,9 +314,9 @@ export default function TestRunner() {
             <div className="h-8 w-1 rounded-full bg-gray-600/50" />
         </PanelResizeHandle>
 
-        <Panel minSize={30}>
+        <Panel defaultSize={60} minSize={30}>
           <PanelGroup orientation="vertical">
-            <Panel defaultSize={60} minSize={20}>
+            <Panel defaultSize={70} minSize={20}>
               <div className="h-full flex flex-col min-w-0">
                 {/* Toolbar */}
                 <div className="h-14 border-b border-border bg-[#0c0c0e] flex items-center justify-between px-4 shrink-0">
@@ -376,7 +376,7 @@ export default function TestRunner() {
                 <div className="w-8 h-1 rounded-full bg-gray-600/50" />
             </PanelResizeHandle>
 
-            <Panel defaultSize={40} minSize={10}>
+            <Panel defaultSize={30} minSize={10}>
               <TerminalOutput 
                 testResults={testResults}
                 isRunning={isRunning}
