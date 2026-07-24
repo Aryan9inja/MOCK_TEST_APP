@@ -5,6 +5,8 @@
 package repositories
 
 import (
+	"encoding/json"
+
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -16,15 +18,15 @@ type Attempt struct {
 }
 
 type Question struct {
-	ID            string      `json:"id"`
-	Title         string      `json:"title"`
-	Difficulty    string      `json:"difficulty"`
-	Statement     string      `json:"statement"`
-	Constraints   string      `json:"constraints"`
-	Examples      []byte      `json:"examples"`
-	FuncSignature pgtype.Text `json:"func_signature"`
-	TablesSchema  pgtype.Text `json:"tables_schema"`
-	QType         string      `json:"q_type"`
+	ID            string          `json:"id"`
+	Title         string          `json:"title"`
+	Difficulty    string          `json:"difficulty"`
+	Statement     string          `json:"statement"`
+	Constraints   string          `json:"constraints"`
+	Examples      json.RawMessage `json:"examples"`
+	FuncSignature pgtype.Text     `json:"func_signature"`
+	TablesSchema  pgtype.Text     `json:"tables_schema"`
+	QType         string          `json:"q_type"`
 }
 
 type Result struct {

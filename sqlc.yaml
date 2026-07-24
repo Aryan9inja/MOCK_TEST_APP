@@ -12,3 +12,12 @@ sql:
         emit_prepared_queries: false
         emit_interface: true
         emit_exact_table_names: false
+        overrides:
+          - db_type: json
+            go_type:
+              import: encoding/json
+              type: RawMessage
+          - db_type: jsonb
+            go_type:
+              import: encoding/json
+              type: RawMessage

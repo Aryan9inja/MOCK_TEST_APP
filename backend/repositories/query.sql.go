@@ -7,6 +7,7 @@ package repositories
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -208,15 +209,15 @@ RETURNING id, title, difficulty, statement, constraints, examples, func_signatur
 `
 
 type InsertQuestionParams struct {
-	ID            string      `json:"id"`
-	Title         string      `json:"title"`
-	Difficulty    string      `json:"difficulty"`
-	Statement     string      `json:"statement"`
-	Constraints   string      `json:"constraints"`
-	Examples      []byte      `json:"examples"`
-	FuncSignature pgtype.Text `json:"func_signature"`
-	TablesSchema  pgtype.Text `json:"tables_schema"`
-	QType         string      `json:"q_type"`
+	ID            string          `json:"id"`
+	Title         string          `json:"title"`
+	Difficulty    string          `json:"difficulty"`
+	Statement     string          `json:"statement"`
+	Constraints   string          `json:"constraints"`
+	Examples      json.RawMessage `json:"examples"`
+	FuncSignature pgtype.Text     `json:"func_signature"`
+	TablesSchema  pgtype.Text     `json:"tables_schema"`
+	QType         string          `json:"q_type"`
 }
 
 func (q *Queries) InsertQuestion(ctx context.Context, arg InsertQuestionParams) (Question, error) {
