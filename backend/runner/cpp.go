@@ -1,7 +1,6 @@
 package runner
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -73,7 +72,7 @@ int main() {
 	for i, tc := range testCases {
 		isHidden := i >= numVisible
 
-		tmpInputFile, err := ioutil.TempFile("", "input-*.txt")
+		tmpInputFile, err := os.CreateTemp("", "input-*.txt")
 		if err != nil {
 			return models.RunResponse{Passed: false, Message: "Failed to create temp input file"}
 		}

@@ -43,3 +43,22 @@ RETURNING *;
 SELECT * FROM results
 WHERE attempt_id = $1
 ORDER BY submission_time ASC;
+
+-- name: CreateTest :one
+INSERT INTO tests (data) VALUES ($1) RETURNING *;
+
+-- name: ListTests :many
+SELECT id, created_at, updated_at, data->>'title' as title, (data->>'time')::int as time
+FROM tests
+ORDER BY created_at DESC;
+
+-- name: GetTest :one
+SELECT * FROM tests WHERE id = $1;
+
+-- name: CreateTestHistory :one
+INSERT INTO test_history (test_id, questions_solved, total_questions, time_taken_seconds, test_cases_passed, total_test_cases)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING *;
+
+-- name: ListTestHistory :many
+SELECT * FROM test_history WHERE test_id = $1 ORDER BY created_at DESC;

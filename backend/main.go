@@ -35,8 +35,12 @@ func main() {
 		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 	}))
 
-	r.Get("/api/questions", handlers.GetQuestionsHandler)
-	r.Post("/api/run", handlers.RunTestsHandler)
+	r.Get("/api/tests", handlers.ListTestsHandler)
+	r.Post("/api/tests", handlers.CreateTestHandler)
+	r.Get("/api/tests/{id}", handlers.GetTestHandler)
+	r.Post("/api/tests/{id}/run", handlers.RunTestsHandler)
+	r.Post("/api/tests/{id}/history", handlers.SubmitTestHistoryHandler)
+	r.Get("/api/tests/{id}/history", handlers.GetTestHistoryHandler)
 
 	port := os.Getenv("PORT")
 	if port == "" {

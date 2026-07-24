@@ -7,9 +7,8 @@ package repositories
 
 import (
 	"context"
-	"database/sql"
-	"encoding/json"
-	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createAttempt = `-- name: CreateAttempt :one
@@ -22,13 +21,13 @@ RETURNING id, start_time, end_time, status
 `
 
 type CreateAttemptParams struct {
-	ID        string    `json:"id"`
-	StartTime time.Time `json:"start_time"`
-	Status    string    `json:"status"`
+	ID        string           `json:"id"`
+	StartTime pgtype.Timestamp `json:"start_time"`
+	Status    string           `json:"status"`
 }
 
 func (q *Queries) CreateAttempt(ctx context.Context, arg CreateAttemptParams) (Attempt, error) {
-	row := q.db.QueryRowContext(ctx, createAttempt, arg.ID, arg.StartTime, arg.Status)
+	row := q.db.QueryRow(ctx, createAttempt, arg.ID, arg.StartTime, arg.Status)
 	var i Attempt
 	err := row.Scan(
 		&i.ID,
@@ -49,19 +48,19 @@ RETURNING id, attempt_id, question_id, code, language, passed, execution_time_ms
 `
 
 type CreateResultParams struct {
-	ID              string         `json:"id"`
-	AttemptID       string         `json:"attempt_id"`
-	QuestionID      string         `json:"question_id"`
-	Code            string         `json:"code"`
-	Language        string         `json:"language"`
-	Passed          bool           `json:"passed"`
-	ExecutionTimeMs int32          `json:"execution_time_ms"`
-	SubmissionTime  time.Time      `json:"submission_time"`
-	OutputLog       sql.NullString `json:"output_log"`
+	ID              string           `json:"id"`
+	AttemptID       string           `json:"attempt_id"`
+	QuestionID      string           `json:"question_id"`
+	Code            string           `json:"code"`
+	Language        string           `json:"language"`
+	Passed          bool             `json:"passed"`
+	ExecutionTimeMs int32            `json:"execution_time_ms"`
+	SubmissionTime  pgtype.Timestamp `json:"submission_time"`
+	OutputLog       pgtype.Text      `json:"output_log"`
 }
 
 func (q *Queries) CreateResult(ctx context.Context, arg CreateResultParams) (Result, error) {
-	row := q.db.QueryRowContext(ctx, createResult,
+	row := q.db.QueryRow(ctx, createResult,
 		arg.ID,
 		arg.AttemptID,
 		arg.QuestionID,
@@ -87,13 +86,67 @@ func (q *Queries) CreateResult(ctx context.Context, arg CreateResultParams) (Res
 	return i, err
 }
 
+const createTest = `-- name: CreateTest :one
+INSERT INTO tests (data) VALUES ($1) RETURNING id, created_at, updated_at, data
+`
+
+func (q *Queries) CreateTest(ctx context.Context, data []byte) (Test, error) {
+	row := q.db.QueryRow(ctx, createTest, data)
+	var i Test
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Data,
+	)
+	return i, err
+}
+
+const createTestHistory = `-- name: CreateTestHistory :one
+INSERT INTO test_history (test_id, questions_solved, total_questions, time_taken_seconds, test_cases_passed, total_test_cases)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, test_id, questions_solved, total_questions, time_taken_seconds, test_cases_passed, total_test_cases, created_at
+`
+
+type CreateTestHistoryParams struct {
+	TestID           pgtype.UUID `json:"test_id"`
+	QuestionsSolved  int32       `json:"questions_solved"`
+	TotalQuestions   int32       `json:"total_questions"`
+	TimeTakenSeconds int32       `json:"time_taken_seconds"`
+	TestCasesPassed  int32       `json:"test_cases_passed"`
+	TotalTestCases   int32       `json:"total_test_cases"`
+}
+
+func (q *Queries) CreateTestHistory(ctx context.Context, arg CreateTestHistoryParams) (TestHistory, error) {
+	row := q.db.QueryRow(ctx, createTestHistory,
+		arg.TestID,
+		arg.QuestionsSolved,
+		arg.TotalQuestions,
+		arg.TimeTakenSeconds,
+		arg.TestCasesPassed,
+		arg.TotalTestCases,
+	)
+	var i TestHistory
+	err := row.Scan(
+		&i.ID,
+		&i.TestID,
+		&i.QuestionsSolved,
+		&i.TotalQuestions,
+		&i.TimeTakenSeconds,
+		&i.TestCasesPassed,
+		&i.TotalTestCases,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getAttempt = `-- name: GetAttempt :one
 SELECT id, start_time, end_time, status FROM attempts
 WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetAttempt(ctx context.Context, id string) (Attempt, error) {
-	row := q.db.QueryRowContext(ctx, getAttempt, id)
+	row := q.db.QueryRow(ctx, getAttempt, id)
 	var i Attempt
 	err := row.Scan(
 		&i.ID,
@@ -110,7 +163,7 @@ WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetQuestion(ctx context.Context, id string) (Question, error) {
-	row := q.db.QueryRowContext(ctx, getQuestion, id)
+	row := q.db.QueryRow(ctx, getQuestion, id)
 	var i Question
 	err := row.Scan(
 		&i.ID,
@@ -126,6 +179,22 @@ func (q *Queries) GetQuestion(ctx context.Context, id string) (Question, error) 
 	return i, err
 }
 
+const getTest = `-- name: GetTest :one
+SELECT id, created_at, updated_at, data FROM tests WHERE id = $1
+`
+
+func (q *Queries) GetTest(ctx context.Context, id pgtype.UUID) (Test, error) {
+	row := q.db.QueryRow(ctx, getTest, id)
+	var i Test
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Data,
+	)
+	return i, err
+}
+
 const insertQuestion = `-- name: InsertQuestion :one
 INSERT INTO questions (
     id, title, difficulty, statement, constraints, examples, func_signature, tables_schema, q_type
@@ -136,19 +205,19 @@ RETURNING id, title, difficulty, statement, constraints, examples, func_signatur
 `
 
 type InsertQuestionParams struct {
-	ID            string          `json:"id"`
-	Title         string          `json:"title"`
-	Difficulty    string          `json:"difficulty"`
-	Statement     string          `json:"statement"`
-	Constraints   string          `json:"constraints"`
-	Examples      json.RawMessage `json:"examples"`
-	FuncSignature sql.NullString  `json:"func_signature"`
-	TablesSchema  sql.NullString  `json:"tables_schema"`
-	QType         string          `json:"q_type"`
+	ID            string      `json:"id"`
+	Title         string      `json:"title"`
+	Difficulty    string      `json:"difficulty"`
+	Statement     string      `json:"statement"`
+	Constraints   string      `json:"constraints"`
+	Examples      []byte      `json:"examples"`
+	FuncSignature pgtype.Text `json:"func_signature"`
+	TablesSchema  pgtype.Text `json:"tables_schema"`
+	QType         string      `json:"q_type"`
 }
 
 func (q *Queries) InsertQuestion(ctx context.Context, arg InsertQuestionParams) (Question, error) {
-	row := q.db.QueryRowContext(ctx, insertQuestion,
+	row := q.db.QueryRow(ctx, insertQuestion,
 		arg.ID,
 		arg.Title,
 		arg.Difficulty,
@@ -180,7 +249,7 @@ ORDER BY title
 `
 
 func (q *Queries) ListQuestions(ctx context.Context) ([]Question, error) {
-	rows, err := q.db.QueryContext(ctx, listQuestions)
+	rows, err := q.db.Query(ctx, listQuestions)
 	if err != nil {
 		return nil, err
 	}
@@ -203,9 +272,6 @@ func (q *Queries) ListQuestions(ctx context.Context) ([]Question, error) {
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -219,7 +285,7 @@ ORDER BY submission_time ASC
 `
 
 func (q *Queries) ListResultsByAttempt(ctx context.Context, attemptID string) ([]Result, error) {
-	rows, err := q.db.QueryContext(ctx, listResultsByAttempt, attemptID)
+	rows, err := q.db.Query(ctx, listResultsByAttempt, attemptID)
 	if err != nil {
 		return nil, err
 	}
@@ -242,8 +308,78 @@ func (q *Queries) ListResultsByAttempt(ctx context.Context, attemptID string) ([
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+	return items, nil
+}
+
+const listTestHistory = `-- name: ListTestHistory :many
+SELECT id, test_id, questions_solved, total_questions, time_taken_seconds, test_cases_passed, total_test_cases, created_at FROM test_history WHERE test_id = $1 ORDER BY created_at DESC
+`
+
+func (q *Queries) ListTestHistory(ctx context.Context, testID pgtype.UUID) ([]TestHistory, error) {
+	rows, err := q.db.Query(ctx, listTestHistory, testID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TestHistory
+	for rows.Next() {
+		var i TestHistory
+		if err := rows.Scan(
+			&i.ID,
+			&i.TestID,
+			&i.QuestionsSolved,
+			&i.TotalQuestions,
+			&i.TimeTakenSeconds,
+			&i.TestCasesPassed,
+			&i.TotalTestCases,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTests = `-- name: ListTests :many
+SELECT id, created_at, updated_at, data->>'title' as title, (data->>'time')::int as time
+FROM tests
+ORDER BY created_at DESC
+`
+
+type ListTestsRow struct {
+	ID        pgtype.UUID      `json:"id"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	UpdatedAt pgtype.Timestamp `json:"updated_at"`
+	Title     interface{}      `json:"title"`
+	Time      int32            `json:"time"`
+}
+
+func (q *Queries) ListTests(ctx context.Context) ([]ListTestsRow, error) {
+	rows, err := q.db.Query(ctx, listTests)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTestsRow
+	for rows.Next() {
+		var i ListTestsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Title,
+			&i.Time,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -258,12 +394,12 @@ WHERE id = $1
 `
 
 type UpdateAttemptParams struct {
-	ID      string       `json:"id"`
-	EndTime sql.NullTime `json:"end_time"`
-	Status  string       `json:"status"`
+	ID      string           `json:"id"`
+	EndTime pgtype.Timestamp `json:"end_time"`
+	Status  string           `json:"status"`
 }
 
 func (q *Queries) UpdateAttempt(ctx context.Context, arg UpdateAttemptParams) error {
-	_, err := q.db.ExecContext(ctx, updateAttempt, arg.ID, arg.EndTime, arg.Status)
+	_, err := q.db.Exec(ctx, updateAttempt, arg.ID, arg.EndTime, arg.Status)
 	return err
 }

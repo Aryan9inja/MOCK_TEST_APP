@@ -6,16 +6,23 @@ package repositories
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
 	CreateAttempt(ctx context.Context, arg CreateAttemptParams) (Attempt, error)
 	CreateResult(ctx context.Context, arg CreateResultParams) (Result, error)
+	CreateTest(ctx context.Context, data []byte) (Test, error)
+	CreateTestHistory(ctx context.Context, arg CreateTestHistoryParams) (TestHistory, error)
 	GetAttempt(ctx context.Context, id string) (Attempt, error)
 	GetQuestion(ctx context.Context, id string) (Question, error)
+	GetTest(ctx context.Context, id pgtype.UUID) (Test, error)
 	InsertQuestion(ctx context.Context, arg InsertQuestionParams) (Question, error)
 	ListQuestions(ctx context.Context) ([]Question, error)
 	ListResultsByAttempt(ctx context.Context, attemptID string) ([]Result, error)
+	ListTestHistory(ctx context.Context, testID pgtype.UUID) ([]TestHistory, error)
+	ListTests(ctx context.Context) ([]ListTestsRow, error)
 	UpdateAttempt(ctx context.Context, arg UpdateAttemptParams) error
 }
 

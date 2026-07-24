@@ -5,38 +5,54 @@
 package repositories
 
 import (
-	"database/sql"
-	"encoding/json"
-	"time"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Attempt struct {
-	ID        string       `json:"id"`
-	StartTime time.Time    `json:"start_time"`
-	EndTime   sql.NullTime `json:"end_time"`
-	Status    string       `json:"status"`
+	ID        string           `json:"id"`
+	StartTime pgtype.Timestamp `json:"start_time"`
+	EndTime   pgtype.Timestamp `json:"end_time"`
+	Status    string           `json:"status"`
 }
 
 type Question struct {
-	ID            string          `json:"id"`
-	Title         string          `json:"title"`
-	Difficulty    string          `json:"difficulty"`
-	Statement     string          `json:"statement"`
-	Constraints   string          `json:"constraints"`
-	Examples      json.RawMessage `json:"examples"`
-	FuncSignature sql.NullString  `json:"func_signature"`
-	TablesSchema  sql.NullString  `json:"tables_schema"`
-	QType         string          `json:"q_type"`
+	ID            string      `json:"id"`
+	Title         string      `json:"title"`
+	Difficulty    string      `json:"difficulty"`
+	Statement     string      `json:"statement"`
+	Constraints   string      `json:"constraints"`
+	Examples      []byte      `json:"examples"`
+	FuncSignature pgtype.Text `json:"func_signature"`
+	TablesSchema  pgtype.Text `json:"tables_schema"`
+	QType         string      `json:"q_type"`
 }
 
 type Result struct {
-	ID              string         `json:"id"`
-	AttemptID       string         `json:"attempt_id"`
-	QuestionID      string         `json:"question_id"`
-	Code            string         `json:"code"`
-	Language        string         `json:"language"`
-	Passed          bool           `json:"passed"`
-	ExecutionTimeMs int32          `json:"execution_time_ms"`
-	SubmissionTime  time.Time      `json:"submission_time"`
-	OutputLog       sql.NullString `json:"output_log"`
+	ID              string           `json:"id"`
+	AttemptID       string           `json:"attempt_id"`
+	QuestionID      string           `json:"question_id"`
+	Code            string           `json:"code"`
+	Language        string           `json:"language"`
+	Passed          bool             `json:"passed"`
+	ExecutionTimeMs int32            `json:"execution_time_ms"`
+	SubmissionTime  pgtype.Timestamp `json:"submission_time"`
+	OutputLog       pgtype.Text      `json:"output_log"`
+}
+
+type Test struct {
+	ID        pgtype.UUID      `json:"id"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	UpdatedAt pgtype.Timestamp `json:"updated_at"`
+	Data      []byte           `json:"data"`
+}
+
+type TestHistory struct {
+	ID               pgtype.UUID      `json:"id"`
+	TestID           pgtype.UUID      `json:"test_id"`
+	QuestionsSolved  int32            `json:"questions_solved"`
+	TotalQuestions   int32            `json:"total_questions"`
+	TimeTakenSeconds int32            `json:"time_taken_seconds"`
+	TestCasesPassed  int32            `json:"test_cases_passed"`
+	TotalTestCases   int32            `json:"total_test_cases"`
+	CreatedAt        pgtype.Timestamp `json:"created_at"`
 }
