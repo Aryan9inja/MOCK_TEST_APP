@@ -33,7 +33,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className="w-1/3 flex flex-col border-r border-border bg-[#0c0c0e]">
+    <div className="h-full flex flex-col border-r border-border bg-[#0c0c0e]">
       <div className="p-4 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button onClick={onNavigateHome} className="p-1 hover:bg-[#27272a] rounded-lg transition-colors mr-1">

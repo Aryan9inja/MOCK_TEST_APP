@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Play, Send } from 'lucide-react';
 import Editor from '@monaco-editor/react';
+import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from 'react-resizable-panels';
 import type { MockTest, Question, RunResponse } from '@/types/test';
 import { Sidebar } from '@/components/Sidebar';
 import { TerminalOutput } from '@/components/TerminalOutput';
@@ -288,84 +289,103 @@ export default function TestRunner() {
 
   return (
     <div className="flex h-screen w-full bg-[#09090b] text-foreground font-sans overflow-hidden">
-      <Sidebar 
-        title={testData.title}
-        isReview={isReview}
-        timeLeft={timeLeft}
-        q={q}
-        questionsCount={questions.length}
-        currentQIdx={currentQIdx}
-        onNavigateHome={() => {
-            if (isReview) {
-                navigate('/');
-            } else if (window.confirm("Do you want to submit the test and return home? Click OK to submit or Cancel to continue.")) {
-                handleSubmitTest();
-            }
-        }}
-        onNext={handleNext}
-        onPrev={handlePrev}
-      />
-
-      {/* Main Content - Editor & Terminal */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Toolbar */}
-        <div className="h-14 border-b border-border bg-[#0c0c0e] flex items-center justify-between px-4">
-          <div className="flex gap-2 bg-[#18181b] p-1 rounded-lg border border-border">
-            {allowedLanguages.map(lang => (
-              <button
-                key={lang}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all bg-[#27272a] text-white shadow-sm cursor-default`}
-              >
-                {lang === 'cpp' ? 'C++' : lang === 'python' ? 'Python' : 'SQL'}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex gap-3">
-            {!isReview && (
-              <>
-                <button 
-                  onClick={handleRunTests}
-                  disabled={isRunning}
-                  className="flex items-center gap-2 bg-[#27272a] hover:bg-[#3f3f46] disabled:opacity-50 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors border border-border">
-                  <Play size={16} className="text-green-400" />
-                  {isRunning ? 'Running...' : 'Run Tests'}
-                </button>
-                <button onClick={handleSubmitTest} className="flex items-center gap-2 bg-primary hover:bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-[0_0_15px_rgba(59,130,246,0.3)]">
-                  <Send size={16} />
-                  Submit Test
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Editor */}
-        <div className="flex-1 bg-[#1e1e1e] relative">
-          <Editor
-            height="100%"
-            language={language}
-            theme="vs-dark"
-            value={code}
-            onChange={handleCodeChange}
-            options={{
-              readOnly: isReview,
-              minimap: { enabled: false },
-              fontSize: 14,
-              fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-              padding: { top: 16 },
-              scrollBeyondLastLine: false,
-              smoothScrolling: true,
+      <PanelGroup orientation="horizontal">
+        <Panel defaultSize={35} minSize={20}>
+          <Sidebar 
+            title={testData.title}
+            isReview={isReview}
+            timeLeft={timeLeft}
+            q={q}
+            questionsCount={questions.length}
+            currentQIdx={currentQIdx}
+            onNavigateHome={() => {
+                if (isReview) {
+                    navigate('/');
+                } else if (window.confirm("Do you want to submit the test and return home? Click OK to submit or Cancel to continue.")) {
+                    handleSubmitTest();
+                }
             }}
+            onNext={handleNext}
+            onPrev={handlePrev}
           />
-        </div>
+        </Panel>
 
-        <TerminalOutput 
-          testResults={testResults}
-          isRunning={isRunning}
-          isReview={isReview}
-        />
-      </div>
+        <PanelResizeHandle className="w-1.5 hover:bg-primary/50 transition-colors cursor-col-resize flex flex-col justify-center items-center z-10">
+            <div className="h-8 w-1 rounded-full bg-gray-600/50" />
+        </PanelResizeHandle>
+
+        <Panel minSize={30}>
+          <PanelGroup orientation="vertical">
+            <Panel defaultSize={60} minSize={20}>
+              <div className="h-full flex flex-col min-w-0">
+                {/* Toolbar */}
+                <div className="h-14 border-b border-border bg-[#0c0c0e] flex items-center justify-between px-4 shrink-0">
+                  <div className="flex gap-2 bg-[#18181b] p-1 rounded-lg border border-border">
+                    {allowedLanguages.map(lang => (
+                      <button
+                        key={lang}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all bg-[#27272a] text-white shadow-sm cursor-default`}
+                      >
+                        {lang === 'cpp' ? 'C++' : lang === 'python' ? 'Python' : 'SQL'}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-3">
+                    {!isReview && (
+                      <>
+                        <button 
+                          onClick={handleRunTests}
+                          disabled={isRunning}
+                          className="flex items-center gap-2 bg-[#27272a] hover:bg-[#3f3f46] disabled:opacity-50 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors border border-border">
+                          <Play size={16} className="text-green-400" />
+                          {isRunning ? 'Running...' : 'Run Tests'}
+                        </button>
+                        <button onClick={handleSubmitTest} className="flex items-center gap-2 bg-primary hover:bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                          <Send size={16} />
+                          Submit Test
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Editor */}
+                <div className="flex-1 bg-[#1e1e1e] relative min-h-0">
+                  <Editor
+                    height="100%"
+                    language={language}
+                    theme="vs-dark"
+                    value={code}
+                    onChange={handleCodeChange}
+                    options={{
+                      readOnly: isReview,
+                      minimap: { enabled: false },
+                      fontSize: 14,
+                      fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                      padding: { top: 16 },
+                      scrollBeyondLastLine: false,
+                      smoothScrolling: true,
+                    }}
+                  />
+                </div>
+              </div>
+            </Panel>
+
+            <PanelResizeHandle className="h-1.5 hover:bg-primary/50 transition-colors cursor-row-resize flex justify-center items-center z-10">
+                <div className="w-8 h-1 rounded-full bg-gray-600/50" />
+            </PanelResizeHandle>
+
+            <Panel defaultSize={40} minSize={10}>
+              <TerminalOutput 
+                testResults={testResults}
+                isRunning={isRunning}
+                isReview={isReview}
+              />
+            </Panel>
+          </PanelGroup>
+        </Panel>
+      </PanelGroup>
     </div>
   );
 }

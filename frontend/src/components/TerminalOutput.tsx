@@ -10,8 +10,8 @@ interface TerminalOutputProps {
 
 export const TerminalOutput: React.FC<TerminalOutputProps> = ({ testResults, isRunning, isReview }) => {
   return (
-    <div className="h-72 border-t border-border bg-[#0c0c0e] flex flex-col">
-      <div className="flex items-center px-4 h-10 border-b border-border">
+    <div className="h-full border-t border-border bg-[#0c0c0e] flex flex-col">
+      <div className="flex items-center px-4 min-h-[40px] border-b border-border">
         <span className="text-sm font-medium text-gray-300 flex items-center gap-2">
           Test Results
         </span>
