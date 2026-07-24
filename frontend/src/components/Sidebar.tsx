@@ -1,6 +1,6 @@
 import React from 'react';
 import { ArrowLeft, Code2, Clock } from 'lucide-react';
-import type { Question } from '../types/test';
+import type { Question } from '@/types/test';
 
 interface SidebarProps {
   title: string;

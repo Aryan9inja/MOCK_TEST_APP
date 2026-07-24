@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Play, Send } from 'lucide-react';
 import Editor from '@monaco-editor/react';
-import type { MockTest, Question, RunResponse } from '../types/test';
-import { Sidebar } from '../components/Sidebar';
-import { TerminalOutput } from '../components/TerminalOutput';
+import type { MockTest, Question, RunResponse } from '@/types/test';
+import { Sidebar } from '@/components/Sidebar';
+import { TerminalOutput } from '@/components/TerminalOutput';
 
 export default function TestRunner() {
   const { testId } = useParams();

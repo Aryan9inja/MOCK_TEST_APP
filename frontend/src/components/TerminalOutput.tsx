@@ -1,6 +1,6 @@
 import React from 'react';
 import { CheckCircle2, XCircle } from 'lucide-react';
-import type { RunResponse } from '../types/test';
+import type { RunResponse } from '@/types/test';
 
 interface TerminalOutputProps {
   testResults: RunResponse | null;
