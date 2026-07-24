@@ -77,6 +77,31 @@ func SubmitTestHistoryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Auto run all test cases and mark submission of questions
+	questionsSolved := 0
+	testCasesPassed := 0
+
+	for _, ans := range req.Answers {
+		q, err := services.GetQuestionByID(id, ans.QuestionID)
+		if err != nil || q == nil {
+			continue // Skip if question not found
+		}
+		
+		resp := runner.RunCode(ans.Code, ans.Language, q)
+		if resp.Passed {
+			questionsSolved++
+		}
+		
+		for _, tcResult := range resp.Results {
+			if tcResult.Passed {
+				testCasesPassed++
+			}
+		}
+	}
+
+	req.QuestionsSolved = questionsSolved
+	req.TestCasesPassed = testCasesPassed
+
 	history, err := services.CreateHistory(id, req)
 	if err != nil {
 		api.SendError(w, http.StatusInternalServerError, err.Error())
