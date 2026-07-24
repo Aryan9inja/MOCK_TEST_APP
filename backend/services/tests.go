@@ -105,11 +105,61 @@ func CreateHistory(testID string, payload HistoryPayload) (*repositories.TestHis
 	return &res, nil
 }
 
-func ListHistory(testID string) ([]repositories.TestHistory, error) {
+type HistoryResponse struct {
+	ID               string          `json:"id"`
+	TestID           string          `json:"test_id"`
+	QuestionsSolved  int32           `json:"questions_solved"`
+	TotalQuestions   int32           `json:"total_questions"`
+	TimeTakenSeconds int32           `json:"time_taken_seconds"`
+	TestCasesPassed  int32           `json:"test_cases_passed"`
+	TotalTestCases   int32           `json:"total_test_cases"`
+	CreatedAt        string          `json:"created_at"`
+	Answers          []AnswerPayload `json:"answers"`
+}
+
+func ListHistory(testID string) ([]HistoryResponse, error) {
 	queries := repositories.New(database.Pool)
 	var uuid pgtype.UUID
 	if err := uuid.Scan(testID); err != nil {
 		return nil, err
 	}
-	return queries.ListTestHistory(context.Background(), uuid)
+	
+	histories, err := queries.ListTestHistory(context.Background(), uuid)
+	if err != nil {
+	    return nil, err
+	}
+	
+	var res []HistoryResponse
+	for _, h := range histories {
+	    var parsedAnswers []AnswerPayload
+	    if len(h.Answers) > 0 {
+	        json.Unmarshal(h.Answers, &parsedAnswers)
+	    }
+	    
+	    idStr := ""
+	    if h.ID.Valid {
+	        idBytes, _ := h.ID.Value()
+	        idStr = idBytes.(string)
+	    }
+	    
+	    testIdStr := ""
+	    if h.TestID.Valid {
+	        testIdBytes, _ := h.TestID.Value()
+	        testIdStr = testIdBytes.(string)
+	    }
+	    
+	    res = append(res, HistoryResponse{
+	        ID: idStr,
+	        TestID: testIdStr,
+	        QuestionsSolved: h.QuestionsSolved,
+	        TotalQuestions: h.TotalQuestions,
+	        TimeTakenSeconds: h.TimeTakenSeconds,
+	        TestCasesPassed: h.TestCasesPassed,
+	        TotalTestCases: h.TotalTestCases,
+	        CreatedAt: h.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+	        Answers: parsedAnswers,
+	    })
+	}
+	
+	return res, nil
 }

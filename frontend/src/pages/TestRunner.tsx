@@ -63,6 +63,7 @@ export default function TestRunner() {
   const [solvedQuestions, setSolvedQuestions] = useState<Set<string>>(new Set());
   const [testCasesPassed, setTestCasesPassed] = useState(0);
   const [answers, setAnswers] = useState<Record<string, { code: string; language: string }>>({});
+  const [isFetchingHistory, setIsFetchingHistory] = useState(isReview);
 
   useEffect(() => {
     fetch(`http://localhost:8080/api/tests/${testId}`)
@@ -90,17 +91,27 @@ export default function TestRunner() {
                 }
             } catch (err) {
                 console.error("Failed to load history", err);
+            } finally {
+                setIsFetchingHistory(false);
             }
         }
         
         if (data.questions && data.questions.length > 0) {
-          loadQuestion(data.questions[0], historyAnswers);
+            // Initial load is now handled by the currentQIdx useEffect
         }
       })
       .catch(err => {
         console.error("Failed to fetch test.", err);
+        setIsFetchingHistory(false);
       });
   }, [testId, isReview]);
+
+  // Reactive question loader
+  useEffect(() => {
+    if (testData && testData.questions.length > 0 && !isFetchingHistory) {
+        loadQuestion(testData.questions[currentQIdx], answers);
+    }
+  }, [currentQIdx, testData, isFetchingHistory]);
 
   // Handle timer
   useEffect(() => {
@@ -179,12 +190,15 @@ export default function TestRunner() {
         setLanguage(saved.language);
         setCode(saved.code);
     } else {
-        if (q.q_type === 'DSA') {
+        const qType = (q.q_type || '').toLowerCase();
+        if (qType === 'dsa') {
           setLanguage('cpp');
-        } else if (q.q_type === 'Python') {
+        } else if (qType === 'python') {
           setLanguage('python');
-        } else if (q.q_type === 'SQL') {
+        } else if (qType === 'sql') {
           setLanguage('sql');
+        } else {
+          setLanguage('cpp');
         }
         setCode(q.starter_code || '');
     }
@@ -192,17 +206,21 @@ export default function TestRunner() {
   };
 
   const handleNext = () => {
-    if (testData && currentQIdx < testData.questions.length - 1) {
-      setCurrentQIdx(currentQIdx + 1);
-      loadQuestion(testData.questions[currentQIdx + 1]);
-    }
+    setCurrentQIdx(prev => {
+        if (testData && prev < testData.questions.length - 1) {
+            return prev + 1;
+        }
+        return prev;
+    });
   };
 
   const handlePrev = () => {
-    if (testData && currentQIdx > 0) {
-      setCurrentQIdx(currentQIdx - 1);
-      loadQuestion(testData.questions[currentQIdx - 1]);
-    }
+    setCurrentQIdx(prev => {
+        if (prev > 0) {
+            return prev - 1;
+        }
+        return prev;
+    });
   };
   
   const handleCodeChange = (value: string | undefined) => {
@@ -289,7 +307,7 @@ export default function TestRunner() {
     }
   };
 
-  if (!testData || testData.questions.length === 0) {
+  if (!testData || testData.questions.length === 0 || isFetchingHistory) {
     return <div className="flex h-screen w-full bg-[#09090b] text-white items-center justify-center">Loading assessment...</div>;
   }
 
@@ -297,8 +315,9 @@ export default function TestRunner() {
   const questions = testData.questions;
 
   let allowedLanguages = ['cpp'];
-  if (q.q_type === 'Python') allowedLanguages = ['python'];
-  if (q.q_type === 'SQL') allowedLanguages = ['sql'];
+  const qTypeLow = (q.q_type || '').toLowerCase();
+  if (qTypeLow === 'python') allowedLanguages = ['python'];
+  if (qTypeLow === 'sql') allowedLanguages = ['sql'];
 
   return (
     <div className="flex h-screen w-full bg-[#09090b] text-foreground font-sans overflow-hidden">
