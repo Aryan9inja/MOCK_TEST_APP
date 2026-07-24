@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Code2, Clock, CalendarDays, History, ArrowRight } from 'lucide-react';
 
@@ -26,7 +26,10 @@ export default function Home() {
     const fetchTests = () => {
         fetch('http://localhost:8080/api/tests')
             .then(res => res.json())
-            .then(data => setTests(data || []))
+            .then(json => {
+                if (json.success) setTests(json.data || []);
+                else console.error(json.error);
+            })
             .catch(err => console.error(err));
     };
 
@@ -34,8 +37,13 @@ export default function Home() {
         setHistoryModalTestId(testId);
         try {
             const res = await fetch(`http://localhost:8080/api/tests/${testId}/history`);
-            const data = await res.json();
-            setTestHistories(data || []);
+            const json = await res.json();
+            if (json.success) {
+                setTestHistories(json.data || []);
+            } else {
+                console.error(json.error);
+                setTestHistories([]);
+            }
         } catch (e) {
             console.error(e);
         }
@@ -49,9 +57,9 @@ export default function Home() {
                 headers: { 'Content-Type': 'application/json' },
                 body: jsonPayload
             });
-            if (!res.ok) {
-                const text = await res.text();
-                throw new Error(text);
+            const json = await res.json();
+            if (!json.success) {
+                throw new Error(json.error || 'Failed to create test');
             }
             setIsModalOpen(false);
             setJsonPayload('');
