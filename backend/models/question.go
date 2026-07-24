@@ -31,7 +31,17 @@ type RunRequest struct {
 	Code       string `json:"code"`
 }
 
+type TestCaseResult struct {
+	Passed         bool   `json:"passed"`
+	IsHidden       bool   `json:"is_hidden"`
+	Input          string `json:"input,omitempty"`
+	ExpectedOutput string `json:"expected_output,omitempty"`
+	ActualOutput   string `json:"actual_output,omitempty"`
+	Error          string `json:"error,omitempty"`
+}
+
 type RunResponse struct {
-	Passed  bool   `json:"passed"`
-	Message string `json:"message"`
+	Passed  bool             `json:"passed"`
+	Message string           `json:"message"`
+	Results []TestCaseResult `json:"results"`
 }

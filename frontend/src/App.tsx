@@ -27,12 +27,27 @@ interface MockTest {
   questions: Question[];
 }
 
+interface TestCaseResult {
+  passed: boolean;
+  is_hidden: boolean;
+  input?: string;
+  expected_output?: string;
+  actual_output?: string;
+  error?: string;
+}
+
+interface RunResponse {
+  passed: boolean;
+  message: string;
+  results: TestCaseResult[];
+}
+
 function App() {
   const [testData, setTestData] = useState<MockTest | null>(null);
   const [currentQIdx, setCurrentQIdx] = useState(0);
   const [language, setLanguage] = useState('cpp');
   const [code, setCode] = useState('');
-  const [testResults, setTestResults] = useState<{ passed: boolean, message: string } | null>(null);
+  const [testResults, setTestResults] = useState<RunResponse | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
@@ -113,7 +128,7 @@ function App() {
       const data = await res.json();
       setTestResults(data);
     } catch (err) {
-      setTestResults({ passed: false, message: "Error connecting to execution server." });
+      setTestResults({ passed: false, message: "Error connecting to execution server.", results: [] });
     }
     setIsRunning(false);
   };
@@ -233,7 +248,7 @@ function App() {
         </div>
 
         {/* Terminal/Output */}
-        <div className="h-64 border-t border-border bg-[#0c0c0e] flex flex-col">
+        <div className="h-72 border-t border-border bg-[#0c0c0e] flex flex-col">
           <div className="flex items-center px-4 h-10 border-b border-border">
             <span className="text-sm font-medium text-gray-300 flex items-center gap-2">
               Test Results
@@ -250,10 +265,41 @@ function App() {
               <div className="space-y-4">
                 <div className={`flex items-center gap-3 ${testResults.passed ? 'text-green-400 bg-green-400/10 border-green-400/20' : 'text-red-400 bg-red-400/10 border-red-400/20'} border p-3 rounded-lg w-fit`}>
                   {testResults.passed ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
-                  <span className="text-sm font-medium">{testResults.passed ? 'All test cases passed!' : 'Tests failed.'}</span>
+                  <span className="text-sm font-medium">{testResults.passed ? 'All test cases passed!' : 'Some tests failed.'}</span>
                 </div>
-                <div className="font-mono text-sm text-gray-400 whitespace-pre-wrap">
-                  <p>{testResults.message}</p>
+                
+                {testResults.message && (
+                   <div className="font-mono text-sm text-red-400 whitespace-pre-wrap bg-red-400/10 p-3 rounded-lg border border-red-400/20">
+                     <p>{testResults.message}</p>
+                   </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-3">
+                  {testResults.results.map((res, i) => (
+                    <div key={i} className={`flex flex-col gap-2 p-3 rounded-xl border ${res.passed ? 'bg-green-400/5 border-green-400/10' : 'bg-red-400/5 border-red-400/10'}`}>
+                      <div className="flex items-center gap-2">
+                        {res.passed ? <CheckCircle2 size={16} className="text-green-400" /> : <XCircle size={16} className="text-red-400" />}
+                        <span className={`text-sm font-semibold ${res.passed ? 'text-green-400' : 'text-red-400'}`}>
+                          Test Case {i + 1} {res.is_hidden ? '(Hidden)' : ''}
+                        </span>
+                      </div>
+                      
+                      {!res.is_hidden && (
+                        <div className="mt-2 space-y-2 text-xs font-mono text-gray-400">
+                          <div><span className="text-gray-500">Input:</span> <span className="text-gray-300">{res.input}</span></div>
+                          <div><span className="text-gray-500">Expected:</span> <span className="text-gray-300">{res.expected_output}</span></div>
+                          <div className={res.passed ? "text-gray-300" : "text-red-400"}><span className="text-gray-500">Got:</span> {res.actual_output}</div>
+                          {res.error && <div className="text-red-400 mt-1"><span className="text-gray-500">Error:</span> {res.error}</div>}
+                        </div>
+                      )}
+
+                      {res.is_hidden && !res.passed && (
+                         <div className="mt-2 text-xs text-red-400 font-mono">
+                           This hidden test case failed.
+                         </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

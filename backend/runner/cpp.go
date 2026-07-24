@@ -13,7 +13,8 @@ import (
 
 func RunCPP(code string, q *models.Question) models.RunResponse {
 	testCases := append(q.TestCases, q.HiddenTestCases...)
-
+	numVisible := len(q.TestCases)
+	
 	mainInjection := `
 #include <iostream>
 #include <vector>
@@ -53,7 +54,7 @@ int main() {
 `
 	fullCode := code + "\n" + mainInjection
 
-	tmpCodeFile, err := os.CreateTemp("", "run-*.cpp")
+	tmpCodeFile, err := ioutil.TempFile("", "run-*.cpp")
 	if err != nil {
 		return models.RunResponse{Passed: false, Message: "Failed to create temp cpp file"}
 	}
@@ -66,10 +67,12 @@ int main() {
 
 	scriptPath, _ := filepath.Abs(filepath.Join("..", "scripts", "run_cpp.sh"))
 
-	var logs []string
-	passed := true
+	var results []models.TestCaseResult
+	passedAll := true
 
 	for i, tc := range testCases {
+		isHidden := i >= numVisible
+
 		tmpInputFile, err := ioutil.TempFile("", "input-*.txt")
 		if err != nil {
 			return models.RunResponse{Passed: false, Message: "Failed to create temp input file"}
@@ -83,14 +86,23 @@ int main() {
 		actualOutput := strings.TrimSpace(string(out))
 		expectedOutput := strings.TrimSpace(tc.ExpectedOutput)
 
-		if actualOutput != expectedOutput {
-			passed = false
-			logs = append(logs, fmt.Sprintf("Test Case %d FAILED.\nInput:\n%s\nExpected:\n%s\nGot:\n%s\n", i+1, tc.Input, expectedOutput, actualOutput))
-		} else {
-			logs = append(logs, fmt.Sprintf("Test Case %d PASSED.", i+1))
+		testPassed := (actualOutput == expectedOutput)
+		if !testPassed {
+			passedAll = false
 		}
+
+		res := models.TestCaseResult{
+			Passed:   testPassed,
+			IsHidden: isHidden,
+		}
+
+		if !isHidden {
+			res.Input = tc.Input
+			res.ExpectedOutput = expectedOutput
+			res.ActualOutput = actualOutput
+		}
+		results = append(results, res)
 	}
 
-	finalMsg := strings.Join(logs, "\n\n")
-	return models.RunResponse{Passed: passed, Message: finalMsg}
+	return models.RunResponse{Passed: passedAll, Message: "", Results: results}
 }

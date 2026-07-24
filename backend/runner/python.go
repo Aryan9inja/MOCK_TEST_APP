@@ -3,7 +3,7 @@ package runner
 import (
 	"bytes"
 	"fmt"
-
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -13,7 +13,8 @@ import (
 
 func RunPython(code string, q *models.Question) models.RunResponse {
 	testCases := append(q.TestCases, q.HiddenTestCases...)
-
+	numVisible := len(q.TestCases)
+	
 	funcName := "solution" // Default
 	if q.FuncSignature != nil {
 		sig := *q.FuncSignature
@@ -56,7 +57,7 @@ if __name__ == "__main__":
 
 	fullCode := code + "\n" + injection
 
-	tmpFile, err := os.CreateTemp("", "run-*.py")
+	tmpFile, err := ioutil.TempFile("", "run-*.py")
 	if err != nil {
 		return models.RunResponse{Passed: false, Message: "Failed to create temp python file"}
 	}
@@ -67,38 +68,57 @@ if __name__ == "__main__":
 	}
 	tmpFile.Close()
 
-	var logs []string
-	passed := true
+	var results []models.TestCaseResult
+	passedAll := true
 
 	for i, tc := range testCases {
+		isHidden := i >= numVisible
+		res := models.TestCaseResult{
+			IsHidden: isHidden,
+		}
+
+		if !isHidden {
+			res.Input = tc.Input
+			res.ExpectedOutput = strings.TrimSpace(tc.ExpectedOutput)
+		}
+
 		cmd := exec.Command("python3", tmpFile.Name())
 		cmd.Stdin = strings.NewReader(tc.Input)
-
+		
 		var out bytes.Buffer
 		var stderr bytes.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = &stderr
-
+		
 		err := cmd.Run()
-
+		
 		actualOutput := strings.TrimSpace(out.String())
 		if err != nil {
 			errStr := strings.TrimSpace(stderr.String())
-			passed = false
-			logs = append(logs, fmt.Sprintf("Test Case %d FAILED.\nError:\n%s\nOutput:\n%s", i+1, errStr, actualOutput))
+			res.Passed = false
+			passedAll = false
+			if !isHidden {
+				res.Error = errStr
+				res.ActualOutput = actualOutput
+			}
+			results = append(results, res)
 			continue
 		}
 
 		expectedOutput := strings.TrimSpace(tc.ExpectedOutput)
-
-		if actualOutput != expectedOutput {
-			passed = false
-			logs = append(logs, fmt.Sprintf("Test Case %d FAILED.\nInput:\n%s\nExpected:\n%s\nGot:\n%s\n", i+1, tc.Input, expectedOutput, actualOutput))
-		} else {
-			logs = append(logs, fmt.Sprintf("Test Case %d PASSED.", i+1))
+		testPassed := (actualOutput == expectedOutput)
+		
+		if !testPassed {
+			passedAll = false
 		}
+		res.Passed = testPassed
+		
+		if !isHidden {
+			res.ActualOutput = actualOutput
+		}
+		
+		results = append(results, res)
 	}
 
-	finalMsg := strings.Join(logs, "\n\n")
-	return models.RunResponse{Passed: passed, Message: finalMsg}
+	return models.RunResponse{Passed: passedAll, Message: "", Results: results}
 }

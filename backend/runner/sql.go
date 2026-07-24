@@ -13,34 +13,57 @@ import (
 func RunSQL(code string, q *models.Question) models.RunResponse {
 	testCases := append(q.TestCases, q.HiddenTestCases...)
 	tablesSchema := q.TablesSchema
+	numVisible := len(q.TestCases)
 
 	if database.Pool == nil {
 		return models.RunResponse{Passed: false, Message: "Database connection not available to run SQL tests"}
 	}
 
-	var logs []string
-	passed := true
+	var results []models.TestCaseResult
+	passedAll := true
 	ctx := context.Background()
 
 	for i, tc := range testCases {
+		isHidden := i >= numVisible
 		schemaId := fmt.Sprintf("test_schema_%d_%d", time.Now().UnixNano(), i)
+
+		res := models.TestCaseResult{
+			IsHidden: isHidden,
+		}
+
+		if !isHidden {
+			res.Input = tc.Input
+			res.ExpectedOutput = strings.TrimSpace(tc.ExpectedOutput)
+		}
 
 		_, err := database.Pool.Exec(ctx, fmt.Sprintf("CREATE SCHEMA %s", schemaId))
 		if err != nil {
-			return models.RunResponse{Passed: false, Message: fmt.Sprintf("Failed to create schema: %v", err)}
+			res.Passed = false
+			res.Error = fmt.Sprintf("Failed to create schema: %v", err)
+			results = append(results, res)
+			passedAll = false
+			continue
 		}
 
 		conn, err := database.Pool.Acquire(ctx)
 		if err != nil {
 			database.Pool.Exec(ctx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaId))
-			return models.RunResponse{Passed: false, Message: "Failed to acquire db connection"}
+			res.Passed = false
+			res.Error = "Failed to acquire db connection"
+			results = append(results, res)
+			passedAll = false
+			continue
 		}
 
 		_, err = conn.Exec(ctx, fmt.Sprintf("SET search_path TO %s", schemaId))
 		if err != nil {
 			conn.Release()
 			database.Pool.Exec(ctx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaId))
-			return models.RunResponse{Passed: false, Message: "Failed to set search path"}
+			res.Passed = false
+			res.Error = "Failed to set search path"
+			results = append(results, res)
+			passedAll = false
+			continue
 		}
 
 		if tablesSchema != nil {
@@ -48,7 +71,11 @@ func RunSQL(code string, q *models.Question) models.RunResponse {
 			if err != nil {
 				conn.Release()
 				database.Pool.Exec(ctx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaId))
-				return models.RunResponse{Passed: false, Message: fmt.Sprintf("Schema Error: %v", err)}
+				res.Passed = false
+				res.Error = fmt.Sprintf("Schema Error: %v", err)
+				results = append(results, res)
+				passedAll = false
+				continue
 			}
 		}
 
@@ -56,15 +83,21 @@ func RunSQL(code string, q *models.Question) models.RunResponse {
 		if err != nil {
 			conn.Release()
 			database.Pool.Exec(ctx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaId))
-			return models.RunResponse{Passed: false, Message: fmt.Sprintf("Input Error: %v", err)}
+			res.Passed = false
+			res.Error = fmt.Sprintf("Input Error: %v", err)
+			results = append(results, res)
+			passedAll = false
+			continue
 		}
 
 		rows, err := conn.Query(ctx, code)
 		if err != nil {
-			passed = false
-			logs = append(logs, fmt.Sprintf("Test Case %d FAILED.\nQuery Error: %v", i+1, err))
 			conn.Release()
 			database.Pool.Exec(ctx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaId))
+			res.Passed = false
+			res.Error = fmt.Sprintf("Query Error: %v", err)
+			results = append(results, res)
+			passedAll = false
 			continue
 		}
 
@@ -82,17 +115,21 @@ func RunSQL(code string, q *models.Question) models.RunResponse {
 		actualOutput := strings.TrimSpace(strings.Join(actualOutputRows, "\n"))
 		expectedOutput := strings.TrimSpace(tc.ExpectedOutput)
 
-		if actualOutput != expectedOutput {
-			passed = false
-			logs = append(logs, fmt.Sprintf("Test Case %d FAILED.\nExpected:\n%s\nGot:\n%s\n", i+1, expectedOutput, actualOutput))
-		} else {
-			logs = append(logs, fmt.Sprintf("Test Case %d PASSED.", i+1))
+		testPassed := (actualOutput == expectedOutput)
+		if !testPassed {
+			passedAll = false
+		}
+		res.Passed = testPassed
+
+		if !isHidden {
+			res.ActualOutput = actualOutput
 		}
 
 		conn.Release()
 		database.Pool.Exec(ctx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaId))
+		
+		results = append(results, res)
 	}
 
-	finalMsg := strings.Join(logs, "\n\n")
-	return models.RunResponse{Passed: passed, Message: finalMsg}
+	return models.RunResponse{Passed: passedAll, Message: "", Results: results}
 }
