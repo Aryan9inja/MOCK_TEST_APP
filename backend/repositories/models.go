@@ -9,10 +9,10 @@ import (
 )
 
 type Attempt struct {
-	ID        string           `json:"id"`
-	StartTime pgtype.Timestamp `json:"start_time"`
-	EndTime   pgtype.Timestamp `json:"end_time"`
-	Status    string           `json:"status"`
+	ID        string             `json:"id"`
+	StartTime pgtype.Timestamptz `json:"start_time"`
+	EndTime   pgtype.Timestamptz `json:"end_time"`
+	Status    string             `json:"status"`
 }
 
 type Question struct {
@@ -28,31 +28,32 @@ type Question struct {
 }
 
 type Result struct {
-	ID              string           `json:"id"`
-	AttemptID       string           `json:"attempt_id"`
-	QuestionID      string           `json:"question_id"`
-	Code            string           `json:"code"`
-	Language        string           `json:"language"`
-	Passed          bool             `json:"passed"`
-	ExecutionTimeMs int32            `json:"execution_time_ms"`
-	SubmissionTime  pgtype.Timestamp `json:"submission_time"`
-	OutputLog       pgtype.Text      `json:"output_log"`
+	ID              string             `json:"id"`
+	AttemptID       string             `json:"attempt_id"`
+	QuestionID      string             `json:"question_id"`
+	Code            string             `json:"code"`
+	Language        string             `json:"language"`
+	Passed          bool               `json:"passed"`
+	ExecutionTimeMs int32              `json:"execution_time_ms"`
+	SubmissionTime  pgtype.Timestamptz `json:"submission_time"`
+	OutputLog       pgtype.Text        `json:"output_log"`
 }
 
 type Test struct {
-	ID        pgtype.UUID      `json:"id"`
-	CreatedAt pgtype.Timestamp `json:"created_at"`
-	UpdatedAt pgtype.Timestamp `json:"updated_at"`
-	Data      []byte           `json:"data"`
+	ID        pgtype.UUID        `json:"id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	Data      []byte             `json:"data"`
 }
 
 type TestHistory struct {
-	ID               pgtype.UUID      `json:"id"`
-	TestID           pgtype.UUID      `json:"test_id"`
-	QuestionsSolved  int32            `json:"questions_solved"`
-	TotalQuestions   int32            `json:"total_questions"`
-	TimeTakenSeconds int32            `json:"time_taken_seconds"`
-	TestCasesPassed  int32            `json:"test_cases_passed"`
-	TotalTestCases   int32            `json:"total_test_cases"`
-	CreatedAt        pgtype.Timestamp `json:"created_at"`
+	ID               pgtype.UUID        `json:"id"`
+	TestID           pgtype.UUID        `json:"test_id"`
+	QuestionsSolved  int32              `json:"questions_solved"`
+	TotalQuestions   int32              `json:"total_questions"`
+	TimeTakenSeconds int32              `json:"time_taken_seconds"`
+	TestCasesPassed  int32              `json:"test_cases_passed"`
+	TotalTestCases   int32              `json:"total_test_cases"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	Answers          []byte             `json:"answers"`
 }

@@ -7,6 +7,7 @@ interface TestSummary {
     title: string;
     time: number;
     created_at: string;
+    last_attempt_date: string | null;
 }
 
 export default function Home() {
@@ -88,12 +89,19 @@ export default function Home() {
                                 </div>
                             </div>
                             <div className="mt-auto flex gap-3">
-                                <button 
-                                    onClick={() => navigate(`/test/${t.id}`)}
-                                    className="flex-1 bg-white text-black hover:bg-gray-200 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
-                                    Take Test
-                                </button>
-                                {/* History Modal can be added here later */}
+                                {t.last_attempt_date && (new Date().getTime() - new Date(t.last_attempt_date).getTime() < 5 * 24 * 60 * 60 * 1000) ? (
+                                    <button 
+                                        onClick={() => navigate(`/test/${t.id}?review=true`)}
+                                        className="flex-1 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 hover:bg-yellow-500/20 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+                                        Review Test
+                                    </button>
+                                ) : (
+                                    <button 
+                                        onClick={() => navigate(`/test/${t.id}`)}
+                                        className="flex-1 bg-white text-black hover:bg-gray-200 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+                                        Take Test
+                                    </button>
+                                )}
                                 <button className="p-2 bg-[#27272a] hover:bg-[#3f3f46] text-white rounded-lg transition-colors border border-border" title="View History">
                                     <History size={18} />
                                 </button>

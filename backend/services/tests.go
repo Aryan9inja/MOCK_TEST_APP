@@ -65,12 +65,19 @@ func GetQuestionByID(testID, questionID string) (*models.Question, error) {
 	return nil, nil
 }
 
+type AnswerPayload struct {
+	QuestionID string `json:"question_id"`
+	Code       string `json:"code"`
+	Language   string `json:"language"`
+}
+
 type HistoryPayload struct {
-	QuestionsSolved   int `json:"questions_solved"`
-	TotalQuestions    int `json:"total_questions"`
-	TimeTakenSeconds  int `json:"time_taken_seconds"`
-	TestCasesPassed   int `json:"test_cases_passed"`
-	TotalTestCases    int `json:"total_test_cases"`
+	QuestionsSolved   int             `json:"questions_solved"`
+	TotalQuestions    int             `json:"total_questions"`
+	TimeTakenSeconds  int             `json:"time_taken_seconds"`
+	TestCasesPassed   int             `json:"test_cases_passed"`
+	TotalTestCases    int             `json:"total_test_cases"`
+	Answers           []AnswerPayload `json:"answers"`
 }
 
 func CreateHistory(testID string, payload HistoryPayload) (*repositories.TestHistory, error) {
@@ -81,6 +88,8 @@ func CreateHistory(testID string, payload HistoryPayload) (*repositories.TestHis
 		return nil, err
 	}
 	
+	answersBytes, _ := json.Marshal(payload.Answers)
+	
 	res, err := queries.CreateTestHistory(context.Background(), repositories.CreateTestHistoryParams{
 		TestID:           uuid,
 		QuestionsSolved:  int32(payload.QuestionsSolved),
@@ -88,6 +97,7 @@ func CreateHistory(testID string, payload HistoryPayload) (*repositories.TestHis
 		TimeTakenSeconds: int32(payload.TimeTakenSeconds),
 		TestCasesPassed:  int32(payload.TestCasesPassed),
 		TotalTestCases:   int32(payload.TotalTestCases),
+		Answers:          answersBytes,
 	})
 	if err != nil {
 		return nil, err

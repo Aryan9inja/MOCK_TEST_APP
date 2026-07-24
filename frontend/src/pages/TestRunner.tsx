@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Play, Send, Clock, CheckCircle2, XCircle, Code2, ArrowLeft } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 
@@ -47,6 +47,9 @@ interface RunResponse {
 export default function TestRunner() {
   const { testId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const isReview = searchParams.get('review') === 'true';
 
   const [testData, setTestData] = useState<MockTest | null>(null);
   const [currentQIdx, setCurrentQIdx] = useState(0);
@@ -56,9 +59,10 @@ export default function TestRunner() {
   const [isRunning, setIsRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   
-  // Track metrics across questions
+  // Track metrics and answers across questions
   const [solvedQuestions, setSolvedQuestions] = useState<Set<string>>(new Set());
   const [testCasesPassed, setTestCasesPassed] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, { code: string; language: string }>>({});
 
   useEffect(() => {
     fetch(`http://localhost:8080/api/tests/${testId}`)
@@ -66,21 +70,41 @@ export default function TestRunner() {
         if (!res.ok) throw new Error("Test not found");
         return res.json();
       })
-      .then((data: MockTest) => {
+      .then(async (data: MockTest) => {
         setTestData(data);
         setTimeLeft(data.time);
+        
+        let historyAnswers: Record<string, { code: string; language: string }> = {};
+        if (isReview) {
+            try {
+                const hRes = await fetch(`http://localhost:8080/api/tests/${testId}/history`);
+                const hData = await hRes.json();
+                if (hData && hData.length > 0) {
+                    const latest = hData[0]; // Ordered by created_at DESC
+                    if (latest.answers) {
+                        latest.answers.forEach((ans: any) => {
+                            historyAnswers[ans.question_id] = { code: ans.code, language: ans.language };
+                        });
+                        setAnswers(historyAnswers);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load history", err);
+            }
+        }
+        
         if (data.questions && data.questions.length > 0) {
-          loadQuestion(data.questions[0]);
+          loadQuestion(data.questions[0], historyAnswers);
         }
       })
       .catch(err => {
         console.error("Failed to fetch test.", err);
       });
-  }, [testId]);
+  }, [testId, isReview]);
 
   // Handle timer
   useEffect(() => {
-    if (timeLeft === null || timeLeft <= 0) return;
+    if (timeLeft === null || timeLeft <= 0 || isReview) return;
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev && prev > 1) {
@@ -94,10 +118,12 @@ export default function TestRunner() {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [timeLeft]);
+  }, [timeLeft, isReview]);
 
   // Handle browser refresh and tab close
   useEffect(() => {
+    if (isReview) return;
+    
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = 'Are you sure you want to leave? Your progress will be submitted.';
@@ -111,12 +137,20 @@ export default function TestRunner() {
           totalTC += (q.test_cases?.length || 0) + (q.hidden_test_cases?.length || 0);
       });
       const timeTaken = testData.time - (timeLeft || 0);
+      
+      const payloadAnswers = Object.entries(answers).map(([qId, data]) => ({
+          question_id: qId,
+          code: data.code,
+          language: data.language
+      }));
+
       const payload = {
           questions_solved: solvedQuestions.size,
           total_questions: testData.questions.length,
           time_taken_seconds: timeTaken,
           test_cases_passed: testCasesPassed,
-          total_test_cases: totalTC
+          total_test_cases: totalTC,
+          answers: payloadAnswers
       };
       
       const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
@@ -130,7 +164,7 @@ export default function TestRunner() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('unload', handleUnload);
     };
-  }, [testData, solvedQuestions, testCasesPassed, timeLeft, testId]);
+  }, [testData, solvedQuestions, testCasesPassed, timeLeft, testId, isReview, answers]);
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
@@ -139,15 +173,21 @@ export default function TestRunner() {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const loadQuestion = (q: Question) => {
-    if (q.q_type === 'DSA') {
-      setLanguage('cpp');
-    } else if (q.q_type === 'Python') {
-      setLanguage('python');
-    } else if (q.q_type === 'SQL') {
-      setLanguage('sql');
+  const loadQuestion = (q: Question, historyMap: Record<string, { code: string; language: string }> = answers) => {
+    const saved = historyMap[q.id];
+    if (saved) {
+        setLanguage(saved.language);
+        setCode(saved.code);
+    } else {
+        if (q.q_type === 'DSA') {
+          setLanguage('cpp');
+        } else if (q.q_type === 'Python') {
+          setLanguage('python');
+        } else if (q.q_type === 'SQL') {
+          setLanguage('sql');
+        }
+        setCode(q.starter_code || '');
     }
-    setCode(q.starter_code || '');
     setTestResults(null);
   };
 
@@ -163,6 +203,18 @@ export default function TestRunner() {
       setCurrentQIdx(currentQIdx - 1);
       loadQuestion(testData.questions[currentQIdx - 1]);
     }
+  };
+  
+  const handleCodeChange = (value: string | undefined) => {
+      const newCode = value || '';
+      setCode(newCode);
+      if (testData && testData.questions[currentQIdx]) {
+          const qId = testData.questions[currentQIdx].id;
+          setAnswers(prev => ({
+              ...prev,
+              [qId]: { code: newCode, language }
+          }));
+      }
   };
 
   const handleRunTests = async () => {
@@ -209,12 +261,19 @@ export default function TestRunner() {
 
     const timeTaken = testData.time - (timeLeft || 0);
 
+    const payloadAnswers = Object.entries(answers).map(([qId, data]) => ({
+        question_id: qId,
+        code: data.code,
+        language: data.language
+    }));
+
     const payload = {
         questions_solved: solvedQuestions.size,
         total_questions: testData.questions.length,
         time_taken_seconds: timeTaken,
         test_cases_passed: testCasesPassed,
-        total_test_cases: totalTC
+        total_test_cases: totalTC,
+        answers: payloadAnswers
     };
 
     try {
@@ -248,7 +307,9 @@ export default function TestRunner() {
         <div className="p-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button onClick={() => {
-                if (window.confirm("Do you want to submit the test and return home? Click OK to submit or Cancel to continue.")) {
+                if (isReview) {
+                    navigate('/');
+                } else if (window.confirm("Do you want to submit the test and return home? Click OK to submit or Cancel to continue.")) {
                     handleSubmitTest();
                 }
             }} className="p-1 hover:bg-[#27272a] rounded-lg transition-colors mr-1">
@@ -261,9 +322,9 @@ export default function TestRunner() {
               {testData.title}
             </h1>
           </div>
-          <div className={`flex items-center gap-2 font-mono text-sm px-3 py-1.5 rounded-full border ${timeLeft !== null && timeLeft < 300 ? 'text-red-400 bg-red-400/10 border-red-400/20' : 'text-gray-300 bg-gray-800 border-gray-700'}`}>
+          <div className={`flex items-center gap-2 font-mono text-sm px-3 py-1.5 rounded-full border ${isReview ? 'text-blue-400 bg-blue-400/10 border-blue-400/20' : (timeLeft !== null && timeLeft < 300 ? 'text-red-400 bg-red-400/10 border-red-400/20' : 'text-gray-300 bg-gray-800 border-gray-700')}`}>
             <Clock size={14} />
-            <span>{timeLeft !== null ? formatTime(timeLeft) : '00:00:00'}</span>
+            <span>{isReview ? 'Review Mode' : (timeLeft !== null ? formatTime(timeLeft) : '00:00:00')}</span>
           </div>
         </div>
         
@@ -318,17 +379,21 @@ export default function TestRunner() {
           </div>
 
           <div className="flex gap-3">
-            <button 
-              onClick={handleRunTests}
-              disabled={isRunning}
-              className="flex items-center gap-2 bg-[#27272a] hover:bg-[#3f3f46] disabled:opacity-50 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors border border-border">
-              <Play size={16} className="text-green-400" />
-              {isRunning ? 'Running...' : 'Run Tests'}
-            </button>
-            <button onClick={handleSubmitTest} className="flex items-center gap-2 bg-primary hover:bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-[0_0_15px_rgba(59,130,246,0.3)]">
-              <Send size={16} />
-              Submit Test
-            </button>
+            {!isReview && (
+              <>
+                <button 
+                  onClick={handleRunTests}
+                  disabled={isRunning}
+                  className="flex items-center gap-2 bg-[#27272a] hover:bg-[#3f3f46] disabled:opacity-50 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors border border-border">
+                  <Play size={16} className="text-green-400" />
+                  {isRunning ? 'Running...' : 'Run Tests'}
+                </button>
+                <button onClick={handleSubmitTest} className="flex items-center gap-2 bg-primary hover:bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                  <Send size={16} />
+                  Submit Test
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -339,8 +404,9 @@ export default function TestRunner() {
             language={language}
             theme="vs-dark"
             value={code}
-            onChange={(value) => setCode(value || '')}
+            onChange={handleCodeChange}
             options={{
+              readOnly: isReview,
               minimap: { enabled: false },
               fontSize: 14,
               fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
@@ -360,7 +426,9 @@ export default function TestRunner() {
           </div>
           <div className="flex-1 p-4 overflow-y-auto">
             {!testResults && !isRunning && (
-              <div className="text-sm text-gray-500">Run tests to see results here.</div>
+              <div className="text-sm text-gray-500">
+                {isReview ? 'Reviewing previous submission.' : 'Run tests to see results here.'}
+              </div>
             )}
             {isRunning && (
               <div className="text-sm text-yellow-500">Executing code...</div>

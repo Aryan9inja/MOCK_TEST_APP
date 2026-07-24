@@ -21,9 +21,9 @@ RETURNING id, start_time, end_time, status
 `
 
 type CreateAttemptParams struct {
-	ID        string           `json:"id"`
-	StartTime pgtype.Timestamp `json:"start_time"`
-	Status    string           `json:"status"`
+	ID        string             `json:"id"`
+	StartTime pgtype.Timestamptz `json:"start_time"`
+	Status    string             `json:"status"`
 }
 
 func (q *Queries) CreateAttempt(ctx context.Context, arg CreateAttemptParams) (Attempt, error) {
@@ -48,15 +48,15 @@ RETURNING id, attempt_id, question_id, code, language, passed, execution_time_ms
 `
 
 type CreateResultParams struct {
-	ID              string           `json:"id"`
-	AttemptID       string           `json:"attempt_id"`
-	QuestionID      string           `json:"question_id"`
-	Code            string           `json:"code"`
-	Language        string           `json:"language"`
-	Passed          bool             `json:"passed"`
-	ExecutionTimeMs int32            `json:"execution_time_ms"`
-	SubmissionTime  pgtype.Timestamp `json:"submission_time"`
-	OutputLog       pgtype.Text      `json:"output_log"`
+	ID              string             `json:"id"`
+	AttemptID       string             `json:"attempt_id"`
+	QuestionID      string             `json:"question_id"`
+	Code            string             `json:"code"`
+	Language        string             `json:"language"`
+	Passed          bool               `json:"passed"`
+	ExecutionTimeMs int32              `json:"execution_time_ms"`
+	SubmissionTime  pgtype.Timestamptz `json:"submission_time"`
+	OutputLog       pgtype.Text        `json:"output_log"`
 }
 
 func (q *Queries) CreateResult(ctx context.Context, arg CreateResultParams) (Result, error) {
@@ -103,9 +103,9 @@ func (q *Queries) CreateTest(ctx context.Context, data []byte) (Test, error) {
 }
 
 const createTestHistory = `-- name: CreateTestHistory :one
-INSERT INTO test_history (test_id, questions_solved, total_questions, time_taken_seconds, test_cases_passed, total_test_cases)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, test_id, questions_solved, total_questions, time_taken_seconds, test_cases_passed, total_test_cases, created_at
+INSERT INTO test_history (test_id, questions_solved, total_questions, time_taken_seconds, test_cases_passed, total_test_cases, answers)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, test_id, questions_solved, total_questions, time_taken_seconds, test_cases_passed, total_test_cases, created_at, answers
 `
 
 type CreateTestHistoryParams struct {
@@ -115,6 +115,7 @@ type CreateTestHistoryParams struct {
 	TimeTakenSeconds int32       `json:"time_taken_seconds"`
 	TestCasesPassed  int32       `json:"test_cases_passed"`
 	TotalTestCases   int32       `json:"total_test_cases"`
+	Answers          []byte      `json:"answers"`
 }
 
 func (q *Queries) CreateTestHistory(ctx context.Context, arg CreateTestHistoryParams) (TestHistory, error) {
@@ -125,6 +126,7 @@ func (q *Queries) CreateTestHistory(ctx context.Context, arg CreateTestHistoryPa
 		arg.TimeTakenSeconds,
 		arg.TestCasesPassed,
 		arg.TotalTestCases,
+		arg.Answers,
 	)
 	var i TestHistory
 	err := row.Scan(
@@ -136,6 +138,7 @@ func (q *Queries) CreateTestHistory(ctx context.Context, arg CreateTestHistoryPa
 		&i.TestCasesPassed,
 		&i.TotalTestCases,
 		&i.CreatedAt,
+		&i.Answers,
 	)
 	return i, err
 }
@@ -315,7 +318,7 @@ func (q *Queries) ListResultsByAttempt(ctx context.Context, attemptID string) ([
 }
 
 const listTestHistory = `-- name: ListTestHistory :many
-SELECT id, test_id, questions_solved, total_questions, time_taken_seconds, test_cases_passed, total_test_cases, created_at FROM test_history WHERE test_id = $1 ORDER BY created_at DESC
+SELECT id, test_id, questions_solved, total_questions, time_taken_seconds, test_cases_passed, total_test_cases, created_at, answers FROM test_history WHERE test_id = $1 ORDER BY created_at DESC
 `
 
 func (q *Queries) ListTestHistory(ctx context.Context, testID pgtype.UUID) ([]TestHistory, error) {
@@ -336,6 +339,7 @@ func (q *Queries) ListTestHistory(ctx context.Context, testID pgtype.UUID) ([]Te
 			&i.TestCasesPassed,
 			&i.TotalTestCases,
 			&i.CreatedAt,
+			&i.Answers,
 		); err != nil {
 			return nil, err
 		}
@@ -348,17 +352,29 @@ func (q *Queries) ListTestHistory(ctx context.Context, testID pgtype.UUID) ([]Te
 }
 
 const listTests = `-- name: ListTests :many
-SELECT id, created_at, updated_at, data->>'title' as title, (data->>'time')::int as time
-FROM tests
-ORDER BY created_at DESC
+SELECT 
+    t.id, 
+    t.created_at, 
+    t.updated_at, 
+    t.data->>'title' as title, 
+    (t.data->>'time')::int as time,
+    h.created_at as last_attempt_date
+FROM tests t
+LEFT JOIN LATERAL (
+    SELECT created_at FROM test_history 
+    WHERE test_id = t.id 
+    ORDER BY created_at DESC LIMIT 1
+) h ON true
+ORDER BY t.created_at DESC
 `
 
 type ListTestsRow struct {
-	ID        pgtype.UUID      `json:"id"`
-	CreatedAt pgtype.Timestamp `json:"created_at"`
-	UpdatedAt pgtype.Timestamp `json:"updated_at"`
-	Title     interface{}      `json:"title"`
-	Time      int32            `json:"time"`
+	ID              pgtype.UUID        `json:"id"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	Title           interface{}        `json:"title"`
+	Time            int32              `json:"time"`
+	LastAttemptDate pgtype.Timestamptz `json:"last_attempt_date"`
 }
 
 func (q *Queries) ListTests(ctx context.Context) ([]ListTestsRow, error) {
@@ -376,6 +392,7 @@ func (q *Queries) ListTests(ctx context.Context) ([]ListTestsRow, error) {
 			&i.UpdatedAt,
 			&i.Title,
 			&i.Time,
+			&i.LastAttemptDate,
 		); err != nil {
 			return nil, err
 		}
@@ -394,9 +411,9 @@ WHERE id = $1
 `
 
 type UpdateAttemptParams struct {
-	ID      string           `json:"id"`
-	EndTime pgtype.Timestamp `json:"end_time"`
-	Status  string           `json:"status"`
+	ID      string             `json:"id"`
+	EndTime pgtype.Timestamptz `json:"end_time"`
+	Status  string             `json:"status"`
 }
 
 func (q *Queries) UpdateAttempt(ctx context.Context, arg UpdateAttemptParams) error {
