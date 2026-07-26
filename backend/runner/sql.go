@@ -57,6 +57,7 @@ func RunSQL(code string, q *models.Question) models.RunResponse {
 
 		_, err = conn.Exec(ctx, fmt.Sprintf("SET search_path TO %s", schemaId))
 		if err != nil {
+			conn.Exec(ctx, "RESET search_path")
 			conn.Release()
 			database.Pool.Exec(ctx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaId))
 			res.Passed = false
@@ -69,6 +70,7 @@ func RunSQL(code string, q *models.Question) models.RunResponse {
 		if tablesSchema != nil {
 			_, err = conn.Exec(ctx, *tablesSchema)
 			if err != nil {
+				conn.Exec(ctx, "RESET search_path")
 				conn.Release()
 				database.Pool.Exec(ctx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaId))
 				res.Passed = false
@@ -81,6 +83,7 @@ func RunSQL(code string, q *models.Question) models.RunResponse {
 
 		_, err = conn.Exec(ctx, tc.Input)
 		if err != nil {
+			conn.Exec(ctx, "RESET search_path")
 			conn.Release()
 			database.Pool.Exec(ctx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaId))
 			res.Passed = false
@@ -92,6 +95,7 @@ func RunSQL(code string, q *models.Question) models.RunResponse {
 
 		rows, err := conn.Query(ctx, code)
 		if err != nil {
+			conn.Exec(ctx, "RESET search_path")
 			conn.Release()
 			database.Pool.Exec(ctx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaId))
 			res.Passed = false
@@ -115,7 +119,9 @@ func RunSQL(code string, q *models.Question) models.RunResponse {
 		actualOutput := strings.TrimSpace(strings.Join(actualOutputRows, "\n"))
 		expectedOutput := strings.TrimSpace(tc.ExpectedOutput)
 
-		testPassed := (actualOutput == expectedOutput)
+		normActual := strings.ReplaceAll(actualOutput, " ", "")
+		normExpected := strings.ReplaceAll(expectedOutput, " ", "")
+		testPassed := (normActual == normExpected)
 		if !testPassed {
 			passedAll = false
 		}
@@ -125,6 +131,7 @@ func RunSQL(code string, q *models.Question) models.RunResponse {
 			res.ActualOutput = actualOutput
 		}
 
+		conn.Exec(ctx, "RESET search_path")
 		conn.Release()
 		database.Pool.Exec(ctx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaId))
 		
