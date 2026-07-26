@@ -14,8 +14,15 @@ def solution(s):
 		ID:    "1",
 		Title: "Test Python",
 		QType: "Python",
+		MainInjections: map[string]string{
+			"python": `
+if __name__ == "__main__":
+    import sys
+    print(solution(sys.stdin.read().strip()))
+`,
+		},
 		TestCases: []models.TestCase{
-			{Input: "", ExpectedOutput: "hello world\n"},
+			{Input: "", ExpectedOutput: "hello world"},
 		},
 	}
 
