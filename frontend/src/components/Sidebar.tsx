@@ -14,6 +14,91 @@ interface SidebarProps {
   onPrev: () => void;
 }
 
+
+const renderTextWithTables = (text: string) => {
+  if (!text) return null;
+  const lines = text.split('\n');
+  const elements: React.ReactNode[] = [];
+  let currentTable: string[][] = [];
+  let inTable = false;
+  let nonTableText = "";
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.startsWith('+') && line.endsWith('+') && line.includes('-')) {
+      if (!inTable) {
+        inTable = true;
+        if (nonTableText) {
+          elements.push(<span key={i + 'text'}>{nonTableText}</span>);
+          nonTableText = "";
+        }
+      }
+    } else if (inTable && line.startsWith('|') && line.endsWith('|')) {
+      const cells = line.split('|').slice(1, -1).map(c => c.trim());
+      currentTable.push(cells);
+    } else if (inTable) {
+      if (currentTable.length > 0) {
+        elements.push(
+          <div key={i + 'tbl'} className="my-3 overflow-x-auto border border-gray-700 rounded-lg">
+            <table className="min-w-full text-sm text-left">
+              <thead className="bg-[#27272a] text-gray-300">
+                <tr>
+                  {currentTable[0].map((h, idx) => (
+                    <th key={idx} className="px-4 py-2 font-medium border-b border-gray-700">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {currentTable.slice(1).map((row, rIdx) => (
+                  <tr key={rIdx} className="bg-[#18181b] hover:bg-[#27272a]/50">
+                    {row.map((cell, cIdx) => (
+                      <td key={cIdx} className="px-4 py-2 text-gray-400 whitespace-nowrap">{cell}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+        currentTable = [];
+      }
+      inTable = false;
+      nonTableText += lines[i] + '\n';
+    } else {
+      nonTableText += lines[i] + '\n';
+    }
+  }
+
+  if (inTable && currentTable.length > 0) {
+    elements.push(
+      <div key="end-tbl" className="my-3 overflow-x-auto border border-gray-700 rounded-lg">
+        <table className="min-w-full text-sm text-left">
+          <thead className="bg-[#27272a] text-gray-300">
+            <tr>
+              {currentTable[0].map((h, idx) => (
+                <th key={idx} className="px-4 py-2 font-medium border-b border-gray-700">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-800">
+            {currentTable.slice(1).map((row, rIdx) => (
+              <tr key={rIdx} className="bg-[#18181b] hover:bg-[#27272a]/50">
+                {row.map((cell, cIdx) => (
+                  <td key={cIdx} className="px-4 py-2 text-gray-400 whitespace-nowrap">{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  } else if (nonTableText) {
+    elements.push(<span key="end-text">{nonTableText}</span>);
+  }
+
+  return elements.length > 0 ? elements : text;
+};
+
 export const Sidebar: React.FC<SidebarProps> = ({
   title,
   isReview,
@@ -71,8 +156,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div key={i} className="bg-[#18181b] border border-border rounded-xl p-4">
               <p className="text-sm font-semibold mb-2 text-gray-300">Example {i + 1}:</p>
               <div className="font-mono text-sm text-gray-400 space-y-1">
-                <p className="whitespace-pre-wrap"><span className="text-gray-500">Input:</span> {ex.input}</p>
-                <p className="whitespace-pre-wrap"><span className="text-gray-500">Output:</span> {ex.output}</p>
+                <div className="whitespace-pre-wrap break-all"><span className="text-gray-500">Input:</span> {renderTextWithTables(ex.input)}</div>
+                <div className="whitespace-pre-wrap break-all"><span className="text-gray-500">Output:</span> {renderTextWithTables(ex.output)}</div>
               </div>
             </div>
           ))}
