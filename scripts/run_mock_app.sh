@@ -29,6 +29,15 @@ trap cleanup EXIT INT TERM
 echo "Starting PostgreSQL..."
 podman start "$CONTAINER_NAME"
 
+echo "Waiting for PostgreSQL to become ready..."
+until podman exec "$CONTAINER_NAME" pg_isready -U postgres >/dev/null 2>&1; do
+    sleep 1
+done
+echo "PostgreSQL is ready!"
+
+echo "Running database migrations..."
+(cd "$PROJECT_ROOT/database/migrations" && goose postgres "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" up)
+
 echo "Starting backend..."
 (cd "$PROJECT_ROOT/backend" && go run main.go) &
 BACKEND_PID=$!
