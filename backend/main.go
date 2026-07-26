@@ -24,7 +24,7 @@ func main() {
 	}
 
 	if err := database.Connect(); err != nil {
-		log.Println("Database connection skipped or failed:", err)
+		log.Fatalf("Database connection failed: %v", err)
 	} else {
 		defer database.Close()
 		log.Println("Connected to the database successfully.")
