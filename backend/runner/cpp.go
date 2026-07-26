@@ -1,7 +1,7 @@
 package runner
 
 import (
-	"io/ioutil"
+	
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,46 +14,13 @@ func RunCPP(code string, q *models.Question) models.RunResponse {
 	testCases := append(q.TestCases, q.HiddenTestCases...)
 	numVisible := len(q.TestCases)
 	
-	mainInjection := `
-#include <iostream>
-#include <vector>
-#include <string>
-#include <sstream>
-
-int main() {
-    std::string arr_str;
-    std::cin >> arr_str;
-    int target;
-    std::cin >> target;
-    
-    if (arr_str.length() > 2) {
-        arr_str = arr_str.substr(1, arr_str.length() - 2);
-    } else {
-        arr_str = "";
-    }
-    
-    std::vector<int> nums;
-    if (arr_str != "") {
-        std::stringstream ss(arr_str);
-        std::string token;
-        while(std::getline(ss, token, ',')) {
-            nums.push_back(std::stoi(token));
-        }
-    }
-    
-    Solution sol;
-    std::vector<int> res = sol.twoSum(nums, target);
-    if (res.size() >= 2) {
-        std::cout << "[" << res[0] << "," << res[1] << "]" << std::endl;
-    } else {
-        std::cout << "[]" << std::endl;
-    }
-    return 0;
-}
-`
+	mainInjection, ok := q.MainInjections["cpp"]
+	if !ok {
+		return models.RunResponse{Passed: false, Message: "Missing main injection for cpp in question definition"}
+	}
 	fullCode := code + "\n" + mainInjection
 
-	tmpCodeFile, err := ioutil.TempFile("", "run-*.cpp")
+	tmpCodeFile, err := os.CreateTemp("", "run-*.cpp")
 	if err != nil {
 		return models.RunResponse{Passed: false, Message: "Failed to create temp cpp file"}
 	}
