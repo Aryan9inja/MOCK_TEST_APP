@@ -6,17 +6,18 @@ type TestCase struct {
 }
 
 type Question struct {
-	ID              string     `json:"id"`
-	Title           string     `json:"title"`
-	Statement       string     `json:"statement"`
-	Constraints     string     `json:"constraints"`
-	Examples        []any      `json:"examples"`
-	StarterCode     string     `json:"starter_code"`
-	FuncSignature   *string    `json:"func_signature"`
-	TablesSchema    *string    `json:"tables_schema"`
-	QType           string     `json:"q_type"`
-	TestCases       []TestCase `json:"test_cases"`
-	HiddenTestCases []TestCase `json:"hidden_test_cases"`
+	ID              string            `json:"id"`
+	Title           string            `json:"title"`
+	Statement       string            `json:"statement"`
+	Constraints     string            `json:"constraints"`
+	Examples        []any             `json:"examples"`
+	StarterCode     string            `json:"starter_code"`
+	FuncSignature   *string           `json:"func_signature"`
+	TablesSchema    *string           `json:"tables_schema"`
+	MainInjections  map[string]string `json:"main_injections"`
+	QType           string            `json:"q_type"`
+	TestCases       []TestCase        `json:"test_cases"`
+	HiddenTestCases []TestCase        `json:"hidden_test_cases"`
 }
 
 type MockTest struct {
