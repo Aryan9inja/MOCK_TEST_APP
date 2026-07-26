@@ -2,8 +2,7 @@ package runner
 
 import (
 	"bytes"
-	"fmt"
-	"io/ioutil"
+	
 	"os"
 	"os/exec"
 	"strings"
@@ -15,49 +14,14 @@ func RunPython(code string, q *models.Question) models.RunResponse {
 	testCases := append(q.TestCases, q.HiddenTestCases...)
 	numVisible := len(q.TestCases)
 	
-	funcName := "solution" // Default
-	if q.FuncSignature != nil {
-		sig := *q.FuncSignature
-		if strings.HasPrefix(sig, "def ") {
-			parts := strings.Split(sig, "(")
-			if len(parts) > 0 {
-				nameParts := strings.Split(strings.TrimSpace(parts[0]), " ")
-				if len(nameParts) == 2 {
-					funcName = nameParts[1]
-				}
-			}
-		}
+	injection, ok := q.MainInjections["python"]
+	if !ok {
+		return models.RunResponse{Passed: false, Message: "Missing main injection for python in question definition"}
 	}
-
-	injection := fmt.Sprintf(`
-if __name__ == "__main__":
-    import sys
-    import ast
-    
-    input_data = sys.stdin.read().strip()
-    
-    try:
-        parsed_input = ast.literal_eval(input_data)
-    except:
-        parsed_input = input_data
-        
-    try:
-        if isinstance(parsed_input, tuple):
-            res = %s(*parsed_input)
-        else:
-            res = %s(parsed_input)
-            
-        if isinstance(res, bool):
-            print(str(res).lower())
-        else:
-            print(res)
-    except Exception as e:
-        print("RUNTIME_ERROR:", str(e))
-`, funcName, funcName)
 
 	fullCode := code + "\n" + injection
 
-	tmpFile, err := ioutil.TempFile("", "run-*.py")
+	tmpFile, err := os.CreateTemp("", "run-*.py")
 	if err != nil {
 		return models.RunResponse{Passed: false, Message: "Failed to create temp python file"}
 	}
