@@ -1,0 +1,248 @@
+{
+  "title": "Software Development Engineer Assessment - Mock",
+  "time": 5400,
+  "questions": [
+    {
+      "id": "q1",
+      "title": "Power Grid Recovery",
+      "q_type": "DSA",
+      "statement": "A country's emergency power network consists of n substations numbered from 0 to n-1 connected by m bidirectional transmission lines. Every substation stores a certain amount of backup energy.\n\nDuring a nationwide outage, a connected group of substations can continue operating only if the TOTAL backup energy of that connected component is at least K.\n\nYou are allowed to perform exactly one emergency upgrade by increasing the backup energy of ONE substation by X units. The upgraded substation remains in its original connected component.\n\nReturn the maximum number of substations that can remain operational after performing the upgrade optimally.\n\nNotes:\n- Components are determined using the original graph.\n- Upgrading a station never changes the graph structure.\n- A component is operational if its total backup energy is greater than or equal to K.\n- If every component is already operational, return n.",
+      "constraints": "1 <= n <= 2 * 10^5\n0 <= m <= 2 * 10^5\n0 <= energy[i] <= 10^9\n1 <= K <= 10^14\n1 <= X <= 10^9",
+      "examples": [
+        {
+          "input": "n = 5\nedges = [[0,1],[1,2],[3,4]]\nenergy = [2,1,2,3,2]\nK = 7\nX = 3",
+          "output": "5",
+          "explanation": "Initially, component {0,1,2} has total energy 5 and component {3,4} has total energy 5. Upgrading any station in either component by 3 makes that component operational. Upgrading station 0 makes the first component's total energy 8, so all 3 stations there become operational. The second component remains inactive. Maximum operational stations = 3. However, upgrading station 3 instead activates component {3,4} with 5+3=8 giving 2 stations. Therefore answer is 3."
+        },
+        {
+          "input": "n = 6\nedges = [[0,1],[1,2],[3,4]]\nenergy = [3,3,2,5,4,8]\nK = 8\nX = 2",
+          "output": "6",
+          "explanation": "Components {0,1,2} and {3,4} are already operational. Node 5 forms its own component with energy 8. All stations remain operational."
+        }
+      ],
+      "starter_code": "#include <vector>\nusing namespace std;\n\nclass Solution {\npublic:\n    int maxOperationalStations(int n, vector<vector<int>>& edges, vector<long long>& energy, long long K, long long X) {\n        // Write your code here\n    }\n};",
+      "func_signature": "int maxOperationalStations(int n, vector<vector<int>>& edges, vector<long long>& energy, long long K, long long X)",
+      "main_injections": {
+        "cpp": "\n#include <iostream>\n#include <vector>\n#include <sstream>\n\nint main() {\n    int n;\n    std::cin >> n;\n    \n    std::string edges_str;\n    std::cin >> edges_str;\n    \n    std::string energy_str;\n    std::cin >> energy_str;\n    \n    long long K, X;\n    std::cin >> K >> X;\n\n    // Parse edges\n    std::vector<std::vector<int>> edges;\n    if (edges_str.length() > 2) {\n        edges_str = edges_str.substr(1, edges_str.length() - 2);\n        std::stringstream ss(edges_str);\n        std::string token;\n        while(std::getline(ss, token, ']')) {\n            if (token[0] == ',') token = token.substr(1);\n            if (token[0] == '[') token = token.substr(1);\n            if (!token.empty()) {\n                std::stringstream edge_ss(token);\n                int u, v;\n                char comma;\n                edge_ss >> u >> comma >> v;\n                edges.push_back({u, v});\n            }\n        }\n    }\n\n    // Parse energy\n    std::vector<long long> energy;\n    if (energy_str.length() > 2) {\n        energy_str = energy_str.substr(1, energy_str.length() - 2);\n        std::stringstream ss(energy_str);\n        std::string token;\n        while(std::getline(ss, token, ',')) {\n            energy.push_back(std::stoll(token));\n        }\n    }\n\n    Solution sol;\n    int result = sol.maxOperationalStations(n, edges, energy, K, X);\n    std::cout << result << std::endl;\n\n    return 0;\n}\n"
+      },
+      "tables_schema": null,
+      "test_cases": [
+        {
+          "input": "5\n[[0,1],[1,2],[3,4]]\n[2,1,2,3,2]\n7\n3",
+          "expected_output": "3"
+        },
+        {
+          "input": "6\n[[0,1],[1,2],[3,4]]\n[3,3,2,5,4,8]\n8\n2",
+          "expected_output": "6"
+        },
+        {
+          "input": "4\n[[0,1],[2,3]]\n[1,1,1,1]\n5\n4",
+          "expected_output": "2"
+        }
+      ],
+      "hidden_test_cases": [
+        {
+          "input": "1\n[]\n[5]\n5\n1",
+          "expected_output": "1"
+        },
+        {
+          "input": "1\n[]\n[2]\n5\n2",
+          "expected_output": "0"
+        },
+        {
+          "input": "3\n[[0,1],[1,2]]\n[2,2,2]\n7\n1",
+          "expected_output": "3"
+        },
+        {
+          "input": "3\n[[0,1],[1,2]]\n[2,2,2]\n10\n3",
+          "expected_output": "0"
+        },
+        {
+          "input": "7\n[[0,1],[1,2],[3,4],[4,5]]\n[2,2,2,3,3,3,8]\n8\n2",
+          "expected_output": "4"
+        },
+        {
+          "input": "8\n[[0,1],[1,2],[2,3],[4,5],[6,7]]\n[1,2,3,4,5,1,2,2]\n7\n3",
+          "expected_output": "6"
+        },
+        {
+          "input": "5\n[]\n[1,2,3,4,5]\n5\n3",
+          "expected_output": "2"
+        },
+        {
+          "input": "9\n[[0,1],[1,2],[3,4],[5,6],[6,7],[7,8]]\n[2,2,2,1,1,3,2,2,1]\n6\n2",
+          "expected_output": "6"
+        },
+        {
+          "input": "10\n[[0,1],[1,2],[2,3],[3,4],[5,6],[6,7],[7,8],[8,9]]\n[1,1,1,1,1,2,2,2,2,2]\n7\n3",
+          "expected_output": "5"
+        }
+      ]
+    },
+    {
+      "id": "q2",
+      "title": "Express Lane Allocation",
+      "q_type": "DSA",
+      "statement": "A logistics company operates a straight highway consisting of N checkpoints numbered from 0 to N-1. At checkpoint i, exactly loads[i] packages are waiting to be transported.\n\nTo improve delivery speed, the company can construct exactly ONE express lane. An express lane can cover any contiguous segment of checkpoints.\n\nIf an express lane covers checkpoints [L, R], then every checkpoint inside that segment can ship at most C packages through the express lane. Any remaining packages at those checkpoints continue using the normal road.\n\nThe company wants to minimize the maximum number of packages transported using the normal road at any single checkpoint.\n\nReturn the minimum possible value of this maximum.\n\nNotes:\n- Exactly one express lane must be built.\n- The express lane may cover a single checkpoint.\n- A checkpoint with fewer than C packages can send all of them through the express lane.\n- Packages outside the express lane are unaffected.",
+      "constraints": "1 <= N <= 2 * 10^5\n1 <= loads[i] <= 10^9\n1 <= C <= 10^9",
+      "examples": [
+        {
+          "input": "loads = [8,5,9,6,7]\nC = 5",
+          "output": "4",
+          "explanation": "Build the express lane covering checkpoints [0,4]. Each checkpoint can send at most 5 packages through the express lane, leaving [3,0,4,1,2]. The maximum remaining load is 4."
+        },
+        {
+          "input": "loads = [2,3,4]\nC = 10",
+          "output": "0",
+          "explanation": "The express lane covers every checkpoint. Since every load is at most C, all packages use the express lane."
+        },
+        {
+          "input": "loads = [12,4,15]\nC = 5",
+          "output": "10",
+          "explanation": "Covering the entire highway leaves [7,0,10]. The maximum remaining load is 10."
+        }
+      ],
+      "starter_code": "#include <vector>\nusing namespace std;\n\nclass Solution {\npublic:\n    long long minimizeMaximumLoad(vector<long long>& loads, long long C) {\n        // Write your code here\n    }\n};",
+      "func_signature": "long long minimizeMaximumLoad(vector<long long>& loads, long long C)",
+      "main_injections": {
+        "cpp": "\n#include <iostream>\n#include <vector>\n#include <sstream>\n\nint main() {\n    std::string loads_str;\n    std::cin >> loads_str;\n    long long C;\n    std::cin >> C;\n\n    // Parse loads\n    std::vector<long long> loads;\n    if (loads_str.length() > 2) {\n        loads_str = loads_str.substr(1, loads_str.length() - 2);\n        std::stringstream ss(loads_str);\n        std::string token;\n        while(std::getline(ss, token, ',')) {\n            loads.push_back(std::stoll(token));\n        }\n    }\n\n    Solution sol;\n    long long result = sol.minimizeMaximumLoad(loads, C);\n    std::cout << result << std::endl;\n\n    return 0;\n}\n"
+      },
+      "tables_schema": null,
+      "test_cases": [
+        {
+          "input": "[8,5,9,6,7]\n5",
+          "expected_output": "4"
+        },
+        {
+          "input": "[2,3,4]\n10",
+          "expected_output": "0"
+        },
+        {
+          "input": "[12,4,15]\n5",
+          "expected_output": "10"
+        }
+      ],
+      "hidden_test_cases": [
+        {
+          "input": "[1]\n1",
+          "expected_output": "0"
+        },
+        {
+          "input": "[10]\n3",
+          "expected_output": "7"
+        },
+        {
+          "input": "[5,5,5,5]\n5",
+          "expected_output": "0"
+        },
+        {
+          "input": "[7,7,7,7]\n2",
+          "expected_output": "5"
+        },
+        {
+          "input": "[100,1,100]\n50",
+          "expected_output": "50"
+        },
+        {
+          "input": "[9,3,6,12,15]\n6",
+          "expected_output": "9"
+        },
+        {
+          "input": "[20,18,16,14,12]\n10",
+          "expected_output": "10"
+        },
+        {
+          "input": "[4,8,12,16,20,24]\n8",
+          "expected_output": "16"
+        },
+        {
+          "input": "[1000000000,1000000000,1000000000]\n999999999",
+          "expected_output": "1"
+        }
+      ]
+    },
+    {
+      "id": "q3",
+      "title": "Festival Campaign Performance",
+      "q_type": "SQL",
+      "statement": "An e-commerce platform ran multiple promotional campaigns during a festival season.\n\nFor each campaign, the analytics team wants to evaluate its effectiveness.\n\nWrite a SQL query to return the following columns for every campaign:\n\n- campaign_id\n- campaign_name\n- total_orders (only successful orders placed during the campaign)\n- total_revenue\n- avg_order_value (rounded to 2 decimal places)\n- unique_customers\n- first_time_customers (customers whose first successful order on the platform occurred during this campaign)\n- revenue_rank_in_city (rank campaigns within the same city by total revenue, highest revenue gets rank 1)\n\nOnly consider orders whose payment status is 'SUCCESS'.\n\nReturn the result ordered by city ascending, revenue_rank_in_city ascending, campaign_id ascending.",
+      "constraints": "1 <= rows in each table <= 100000",
+      "tables_schema": "CREATE TABLE Campaigns (\n    campaign_id INT PRIMARY KEY,\n    campaign_name VARCHAR(100),\n    city VARCHAR(50),\n    start_date DATE,\n    end_date DATE\n);\n\nCREATE TABLE Orders (\n    order_id INT PRIMARY KEY,\n    customer_id INT,\n    campaign_id INT,\n    order_date DATE,\n    amount DECIMAL(10,2)\n);\n\nCREATE TABLE Payments (\n    payment_id INT PRIMARY KEY,\n    order_id INT,\n    payment_status VARCHAR(20)\n);",
+      "starter_code": "-- Write your SQL query below",
+      "examples": [
+        {
+          "input": "Campaigns table:\n+-------------+---------------+-------+------------+------------+\n| campaign_id | campaign_name | city  | start_date | end_date   |\n+-------------+---------------+-------+------------+------------+\n| 1           | NewYear       | Delhi | 2026-01-01 | 2026-01-10 |\n+-------------+---------------+-------+------------+------------+\n\nOrders table:\n+----------+-------------+-------------+------------+--------+\n| order_id | customer_id | campaign_id | order_date | amount |\n+----------+-------------+-------------+------------+--------+\n| 101      | 1           | 1           | 2026-01-02 | 100    |\n| 102      | 2           | 1           | 2026-01-03 | 200    |\n+----------+-------------+-------------+------------+--------+\n\nPayments table:\n+------------+----------+----------------+\n| payment_id | order_id | payment_status |\n+------------+----------+----------------+\n| 1          | 101      | SUCCESS        |\n| 2          | 102      | SUCCESS        |\n+------------+----------+----------------+",
+          "output": "+-------------+---------------+--------------+---------------+-----------------+------------------+----------------------+----------------------+\n| campaign_id | campaign_name | total_orders | total_revenue | avg_order_value | unique_customers | first_time_customers | revenue_rank_in_city |\n+-------------+---------------+--------------+---------------+-----------------+------------------+----------------------+----------------------+\n| 1           | NewYear       | 2            | 300.00        | 150.00          | 2                | 2                    | 1                    |\n+-------------+---------------+--------------+---------------+-----------------+------------------+----------------------+----------------------+"
+        }
+      ],
+      "expected_columns": [
+        "campaign_id",
+        "campaign_name",
+        "total_orders",
+        "total_revenue",
+        "avg_order_value",
+        "unique_customers",
+        "first_time_customers",
+        "revenue_rank_in_city"
+      ],
+      "test_cases": [
+        {
+          "input": "INSERT INTO Campaigns VALUES\n(1,'NewYear','Delhi','2026-01-01','2026-01-10');\n\nINSERT INTO Orders VALUES\n(101,1,1,'2026-01-02',100),\n(102,2,1,'2026-01-03',200);\n\nINSERT INTO Payments VALUES\n(1,101,'SUCCESS'),\n(2,102,'SUCCESS');",
+          "expected_output": "1,NewYear,2,300.00,150.00,2,2,1"
+        },
+        {
+          "input": "INSERT INTO Campaigns VALUES\n(1,'Sale','Mumbai','2026-02-01','2026-02-07');\n\nINSERT INTO Orders VALUES\n(1,10,1,'2026-02-02',500),\n(2,10,1,'2026-02-03',700);\n\nINSERT INTO Payments VALUES\n(1,1,'SUCCESS'),\n(2,2,'SUCCESS');",
+          "expected_output": "1,Sale,2,1200.00,600.00,1,1,1"
+        },
+        {
+          "input": "INSERT INTO Campaigns VALUES\n(1,'Mega','Pune','2026-03-01','2026-03-10');\n\nINSERT INTO Orders VALUES\n(1,1,1,'2026-03-03',300),\n(2,2,1,'2026-03-05',500);\n\nINSERT INTO Payments VALUES\n(1,1,'FAILED'),\n(2,2,'SUCCESS');",
+          "expected_output": "1,Mega,1,500.00,500.00,1,1,1"
+        }
+      ],
+      "hidden_test_cases": [
+        {
+          "input": "INSERT INTO Campaigns VALUES\n(2,'Diwali','Delhi','2026-10-01','2026-10-10');\nINSERT INTO Orders VALUES\n(103,3,2,'2026-10-02',400);\nINSERT INTO Payments VALUES\n(3,103,'SUCCESS');",
+          "expected_output": "2,Diwali,1,400.00,400.00,1,1,1"
+        }
+      ]
+    },
+    {
+      "id": "q4",
+      "title": "Customer Trust Score",
+      "q_type": "Python",
+      "statement": "An e-commerce platform wants to assign a Trust Score to every customer before allowing them to participate in a premium sale.\n\nYou are given four independent datasets:\n\n1. customers\nEach record contains:\n- customer_id\n- is_premium (bool)\n\n2. orders\nEach record contains:\n- order_id\n- customer_id\n- product_id\n- quantity\n\n3. products\nEach record contains:\n- product_id\n- category\n- price\n\n4. reviews\nEach record contains:\n- customer_id\n- product_id\n- rating (1-5)\n\nFor every customer compute:\n\n\u2022 total_spent = sum(quantity \u00d7 product price)\n\u2022 categories_bought = number of distinct categories purchased\n\u2022 avg_rating = average rating given by the customer (0 if no reviews)\n\nNow compute trust_score using the following rules:\n\n+10 if is_premium\n+5 if total_spent >= 5000\n+3 if categories_bought >= 3\n+2 if avg_rating >= 4.0\n\nFinally assign:\n\n- 'Trusted' if trust_score >= 15\n- 'Regular' if trust_score >= 8\n- 'Watchlist' otherwise\n\nReturn a list of dictionaries sorted by customer_id ascending.\n\nEach dictionary must contain:\n\n{\n    'customer_id': int,\n    'total_spent': int,\n    'categories_bought': int,\n    'avg_rating': float,\n    'trust_score': int,\n    'status': str\n}\n\nDo not use pandas.",
+      "constraints": "1 <= number of customers <= 10^4\n1 <= number of orders <= 10^5\n1 <= quantity <= 100\n1 <= price <= 10^5\nrating is between 1 and 5",
+      "starter_code": "def calculate_trust_score(customers, orders, products, reviews):\n    # Write your code here\n    pass",
+      "func_signature": "def calculate_trust_score(customers, orders, products, reviews):",
+      "examples": [
+        {
+          "input": "customers = [\n  {'customer_id': 1, 'is_premium': True}\n]\norders = [\n  {'order_id': 1, 'customer_id': 1, 'product_id': 100, 'quantity': 2}\n]\nproducts = [\n  {'product_id': 100, 'category': 'Electronics', 'price': 3000}\n]\nreviews = [\n  {'customer_id': 1, 'product_id': 100, 'rating': 5}\n]",
+          "output": "[\n  {\n    'customer_id': 1,\n    'total_spent': 6000,\n    'categories_bought': 1,\n    'avg_rating': 5.0,\n    'trust_score': 17,\n    'status': 'Trusted'\n  }\n]"
+        }
+      ],
+      "main_injections": {
+        "python": "if __name__ == '__main__':\n    import ast\n    import sys\n\n    data = ast.literal_eval(sys.stdin.read())\n    result = calculate_trust_score(\n        data['customers'],\n        data['orders'],\n        data['products'],\n        data['reviews']\n    )\n    print(result)"
+      },
+      "test_cases": [
+        {
+          "input": "{'customers':[{'customer_id':1,'is_premium':True}],'orders':[{'order_id':1,'customer_id':1,'product_id':10,'quantity':2}],'products':[{'product_id':10,'category':'Electronics','price':3000}],'reviews':[{'customer_id':1,'product_id':10,'rating':5}]}",
+          "expected_output": "[{'customer_id': 1, 'total_spent': 6000, 'categories_bought': 1, 'avg_rating': 5.0, 'trust_score': 17, 'status': 'Trusted'}]"
+        },
+        {
+          "input": "{'customers':[{'customer_id':2,'is_premium':False}],'orders':[{'order_id':1,'customer_id':2,'product_id':1,'quantity':1}],'products':[{'product_id':1,'category':'Books','price':400}],'reviews':[]}",
+          "expected_output": "[{'customer_id': 2, 'total_spent': 400, 'categories_bought': 1, 'avg_rating': 0.0, 'trust_score': 0, 'status': 'Watchlist'}]"
+        },
+        {
+          "input": "{'customers':[{'customer_id':1,'is_premium':False}],'orders':[{'order_id':1,'customer_id':1,'product_id':1,'quantity':2},{'order_id':2,'customer_id':1,'product_id':2,'quantity':1},{'order_id':3,'customer_id':1,'product_id':3,'quantity':1}],'products':[{'product_id':1,'category':'Books','price':1000},{'product_id':2,'category':'Electronics','price':2500},{'product_id':3,'category':'Clothing','price':1800}],'reviews':[{'customer_id':1,'product_id':2,'rating':4},{'customer_id':1,'product_id':3,'rating':5}]}",
+          "expected_output": "[{'customer_id': 1, 'total_spent': 6300, 'categories_bought': 3, 'avg_rating': 4.5, 'trust_score': 10, 'status': 'Regular'}]"
+        }
+      ],
+      "hidden_test_cases": [
+        {
+          "input": "{'customers':[{'customer_id':3,'is_premium':True}],'orders':[{'order_id':1,'customer_id':3,'product_id':1,'quantity':2}],'products':[{'product_id':1,'category':'Books','price':3000}],'reviews':[]}",
+          "expected_output": "[{'customer_id': 3, 'total_spent': 6000, 'categories_bought': 1, 'avg_rating': 0.0, 'trust_score': 15, 'status': 'Trusted'}]"
+        }
+      ]
+    }
+  ]
+}
